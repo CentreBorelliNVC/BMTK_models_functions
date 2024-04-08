@@ -1,0 +1,3 @@
+node_type_id model_template dynamics_params location pop_name ei model_type
+100 nest:glif_lif_asc_psc L1_Htr3a1_529883902_neuron_config.json VisL1 htr3a1 i point_process
+101 nest:glif_lif_asc_psc L1_htr3a2_566307069_neuron_config.json VisL1 htr3a2 i point_process
