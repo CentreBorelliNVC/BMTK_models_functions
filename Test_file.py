@@ -24,4 +24,10 @@ from bmtk.builder.auxi.node_params import CellLocations
 import math
 
 print("test Margaux bis")
+
 print('test_Julien ')
+
+print("test ter")
+
+print("margaux new")
+
