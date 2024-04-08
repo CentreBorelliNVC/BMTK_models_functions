@@ -23,4 +23,4 @@ from bmtk.builder.auxi.node_params import CellLocations
 #import plotly.express as px
 import math
 
-print("test Margaux")
+print("test Margaux bis")
