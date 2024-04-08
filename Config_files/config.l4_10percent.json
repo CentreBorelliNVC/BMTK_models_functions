@@ -17,7 +17,7 @@
       "module": "IClamp",
       "node_set": {
         "population": "cortex_l4_factor_0.1",
-        "pop_name":"exc1
+        "pop_name":"exc1"
       },
       "gids": "all",
       "amp": 1000,
