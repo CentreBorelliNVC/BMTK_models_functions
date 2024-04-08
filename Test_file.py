@@ -24,6 +24,7 @@ from bmtk.builder.auxi.node_params import CellLocations
 import math
 
 print("test Margaux bis")
+<<<<<<< HEAD
 
 print('test_Julien ')
 
@@ -38,3 +39,6 @@ print('Julien new test commit')
 
 print("last modif")
 
+=======
+print("test ter")
+>>>>>>> 60565f4 (commentaire)
