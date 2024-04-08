@@ -73,7 +73,7 @@ def distance_proba_billeh(source,target,amplitude,mu) :
 		return(0)
 
 startt=time.time()
-net=NetworkBuilder('cortex_l4_0.1')
+net=NetworkBuilder('cortex_l4_factor_0.1')
 
 net.import_nodes(nodes_file_name='../Networks/nodes/cortex_l4_0.1_nodes.h5',node_types_file_name='../Networks/nodes/cortex_l4_0.1_node_types.csv')
 
