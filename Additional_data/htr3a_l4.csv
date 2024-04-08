@@ -1,0 +1,10 @@
+pre;post;pmax;mu
+htr3a;exc;0.351;85
+htr3a;pvalb;0.02;120
+htr3a;sst;0.625;120
+htr3a;vip;0.028;120
+htr3a;htr3a;0.028;120
+exc;htr3a;0.571;103
+pvalb;htr3a;0.22;120
+sst;htr3a;0.77;120
+vip;htr3a;0.028;120
