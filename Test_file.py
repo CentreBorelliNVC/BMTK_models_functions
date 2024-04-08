@@ -25,6 +25,7 @@ import math
 
 print("test Margaux bis")
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 print('test_Julien ')
 
@@ -39,6 +40,9 @@ print('Julien new test commit')
 
 print("last modif")
 
+=======
+print("test ter")
+>>>>>>> 60565f4 (commentaire)
 =======
 print("test ter")
 >>>>>>> 60565f4 (commentaire)
