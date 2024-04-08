@@ -16,7 +16,7 @@ l1.add_positions_nrrd(filename,max_dens_all,pop_names=['htr3a1','htr3a2'],partit
 #print('htr3a : ',len(l1.htr3a1.positions),len(l1.htr3a2.positions))
 
 
-net = NetworkBuilder('cortex_l1_'+str(factor))
+net = NetworkBuilder('cortex_l1_factor_'+str(factor))
 net.add_nodes(N=l1.htr3a1.N,
               positions=l1.htr3a1.positions,
               pop_name='htr3a1', location='VisL1', ei='i',
@@ -47,7 +47,7 @@ l23.add_positions_nrrd(filename,max_dens_all,pop_names=['exc','PV1','PV2','PV3',
 #print(len(l23.exc.positions),len(l23.PV1.positions),len(l23.PV2.positions),len(l23.PV3.positions),len(l23.PV4.positions),len(l23.SST1.positions),len(l23.SST2.positions),len(l23.SST3.positions),len(l23.VIP1.positions),len(l23.VIP2.positions),len(l23.VIP3.positions),len(l23.VIP4.positions),len(l23.VIP5.positions),len(l23.htr3a1.positions),len(l23.htr3a2.positions))
 
 
-net = NetworkBuilder('cortex_l23_'+str(factor))
+net = NetworkBuilder('cortex_l23_factor_'+str(factor))
 net.add_nodes(N=l23.exc.N,
               positions=l23.exc.positions,
               pop_name='exc', location='Visl23', ei='e',
@@ -171,7 +171,7 @@ l4.add_positions_nrrd(filename,max_dens_all,pop_names=['exc1','exc2','exc3','exc
 #print(len(l4.exc1.positions),len(l4.exc2.positions),len(l4.exc3.positions),len(l4.exc4.positions),len(l4.exc5.positions),len(l4.exc6.positions),len(l4.exc7.positions),len(l4.PV1.positions),len(l4.PV2.positions),len(l4.SST1.positions),len(l4.SST2.positions),len(l4.SST3.positions),len(l4.VIP1.positions),len(l4.VIP2.positions),len(l4.VIP3.positions),len(l4.VIP4.positions),len(l4.htr3a.positions))
 
 
-net = NetworkBuilder('cortex_l4_'+str(factor))
+net = NetworkBuilder('cortex_l4_factor_'+str(factor))
 net.add_nodes(N=l4.exc1.N,
               positions=l4.exc1.positions,
               pop_name='exc1', location='Visl4', ei='e',
@@ -308,7 +308,7 @@ l5.add_positions_nrrd(filename,max_dens_all,pop_names=['CF','IT1','IT2','PV','SS
 #print(len(l5.CF.positions),len(l5.IT1.positions),len(l5.IT2.positions),len(l5.PV.positions),len(l5.SST1.positions),len(l5.SST2.positions),len(l5.SST3.positions),len(l5.SST4.positions),len(l5.VIP.positions),len(l5.htr3a.positions))
 
 
-net = NetworkBuilder('cortex_l5_'+str(factor))
+net = NetworkBuilder('cortex_l5_factor_'+str(factor))
 net.add_nodes(N=l5.CF.N,
               positions=l5.CF.positions,
               pop_name='CF', location='Visl5', ei='e',
@@ -395,7 +395,7 @@ l6.add_positions_nrrd(filename,max_dens_all,pop_names=['exc1','exc2','exc3','PV1
 #print(len(l6.exc1.positions),len(l6.exc2.positions),len(l6.exc3.positions),len(l6.PV1.positions),len(l6.PV2.positions),len(l6.PV3.positions),len(l6.PV4.positions),len(l6.SST1.positions),len(l6.SST2.positions),len(l6.SST3.positions),len(l6.VIP.positions),len(l6.htr3a.positions))
 
 
-net = NetworkBuilder('cortex_l6_'+str(factor))
+net = NetworkBuilder('cortex_l6_factor_'+str(factor))
 net.add_nodes(N=l6.exc1.N,
               positions=l6.exc1.positions,
               pop_name='exc1', location='Visl6', ei='e',
