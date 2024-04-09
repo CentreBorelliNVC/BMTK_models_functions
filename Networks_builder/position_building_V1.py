@@ -168,10 +168,10 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 
 
 if __name__ == '__main__':
-	a="../Additional_data/dict_v1_nodes.json"
-	l1,l23,l4,l5,l6=add_nodes_V1_in_nrrd (a,1)
+	dict_path="../Additional_data/dict_v1_nodes.json"
+	l1,l23,l4,l5,l6=add_nodes_V1_in_nrrd (dict_path,1) #factor = 1 (100% of the nodes)
 	l1.build()
-	l1.save("../Networks/nodes")
+	l1.save("../Networks/nodes") #only built layer 1 as an example of application
 
 
 
