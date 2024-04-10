@@ -4,6 +4,7 @@ from bmtk.builder.networks import NetworkBuilder
 import plotly.express as px
 import math
 import numpy as np
+import json
 
 
 
