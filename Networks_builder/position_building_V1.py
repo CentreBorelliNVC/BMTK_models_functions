@@ -79,12 +79,19 @@ def plot_population(position_df):
     return position_df
 
 def get_population_loc_df(cell_location_obj):
-    position_df=pd.DataFrame(columns=['x','y','z','Cell_type'])
-    
+    # /!\ added a condition for the tuning angle (if tuning_angle = True --> add tuning angle column)
+    for pop_name in cell_location_obj._all_pop_names : 
+    	if hasattr(getattr(cell_location_obj,pop_name),"tuning_angles") == True :
+    		column_names=["x","y","z","Tuning_angle","Cell_type"]
+    	else : 
+    		column_names=["x","y","z","Cell_type"]
+    position_df=pd.DataFrame(columns=column_names)
     for pop_name,pop_loc in zip(cell_location_obj._all_pop_names,cell_location_obj._all_positions):
         
         pop_loc_df=pd.DataFrame(pop_loc)
         pop_loc_df.columns = ['x','y','z']
+        if "Tuning_angle" in column_names : 
+        	pop_loc_df.loc[:,"Tuning_angle"] = list(getattr(cell_location_obj,pop_name).tuning_angles)
         pop_loc_df.loc[:,'Cell_type'] = pop_name
         position_df = pd.concat([position_df, pop_loc_df],ignore_index=True)
     return position_df
@@ -137,6 +144,21 @@ def create_layer_population_loc(Layer_pop_dict, ctx=None, do_plot=False):
 
 
 def add_nodes_V1_in_nrrd (dict_path,factor) : 
+	"""
+	Place neurons in a nrrd volume 
+	--------
+	dict_path : str
+		Path to the dictionnary containing all necessary information to define and place the neurons within a nrrd volume (check ../Additional_data/dict_v1_nodes.json to see the dictionnary structure)
+	factor : float : 
+		Defines the % of the density kept to build the nodes. Has to be inferior to 1
+	Returns
+	-------
+	nets : list
+		list of bmtk object from which we will be able to build and save the nodes
+	dataframes : list 
+		List of dataframes containing for each the coordinates and cell type names
+	"""
+
 	v1_info=json.load(open(dict_path,'r'))
 	nets=[]
 	dataframes=[]
@@ -154,11 +176,11 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 			pop_names.append(subtype["pop_name"])
 			proportions.append(subtype["proportion"])
 		layer_location.add_positions_nrrd(path_nrrd,maximum_density,pop_names=pop_names,partitions=proportions,method='prog',verbose=True)
-		df_layer=get_population_loc_df(layer_location)
-		dataframes.append(df_layer)
+		
+		
 		net=NetworkBuilder(layer_factor_name)
 		for i,subtype in enumerate(v1_info[layer]["nodes_descriptions"]) : 
-		
+			getattr(layer_location,pop_names[i]).tuning_angles = np.linspace(0.0,360.0,getattr(layer_location,pop_names[i]).N)	
 			net.add_nodes (N=getattr(layer_location,pop_names[i]).N,
 				       positions = getattr(layer_location,pop_names[i]).positions,
 				       pop_name=pop_names[i],
@@ -167,17 +189,26 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 				       dynamics_params=subtype["dynamics_params"],
 				       ei=subtype["ei"],
 				       location=location,
-				       tuning_angle=np.linspace(0.0,360.0,getattr(layer_location,pop_names[i]).N)
+				       tuning_angle=getattr(layer_location,pop_names[i]).tuning_angles
 			)
 		nets.append(net)
+		df_layer=get_population_loc_df(layer_location)
+		print(df_layer)
+		dataframes.append(df_layer)
 	return(nets,dataframes)
 
 
 if __name__ == '__main__':
 	dict_path="../Additional_data/dict_v1_nodes.json"
 	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
-	plot_population(dataframes[0]) #plot l1 neurons
+	print(dataframes[0])
+	print(dataframes[1])
+	#plot_population(dataframes[0]) #plot l1 neurons
 	#net_layers[0].build() #build l1 nodes
 	#net_layers[0].save("../Networks/nodes") #save l1 nodes
 	
+<<<<<<< HEAD
+=======
+	
+>>>>>>> 77d082a (updated get_population_loc_df to add tuning_angle if present in node description)
 
