@@ -135,6 +135,7 @@ def create_layer_population_loc(Layer_pop_dict, ctx=None, do_plot=False):
     
 #%%
 
+
 def add_nodes_V1_in_nrrd (dict_path,factor) : 
 	v1_info=json.load(open(dict_path,'r'))
 	nets=[]
@@ -179,16 +180,4 @@ if __name__ == '__main__':
 	#net_layers[0].build() #build l1 nodes
 	#net_layers[0].save("../Networks/nodes") #save l1 nodes
 	
-
-
-
-
-
-
-
-
-
-
-
-
 

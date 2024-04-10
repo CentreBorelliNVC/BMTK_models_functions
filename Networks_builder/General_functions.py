@@ -69,6 +69,28 @@ def create_network_geometry(geom_type, param_dict, layer_list):
         
         print("test")
         
+def get_nodes_csv_and_h5_table(network_name,network_folder):
+    nodes_csv_table = pd.read_csv(f'{network_folder}/{network_name}_node_types.csv',sep=' ')
+    
+    
+    current_file = h5py.File(f'{network_folder}/{network_name}_nodes.h5', 'r')
+    
+    
+    current_file_node_group_id = pd.DataFrame(current_file['nodes'][network_name]['node_group_id'], columns=['node_group_id'])
+    current_file_node_group_index = pd.DataFrame(current_file['nodes'][network_name]['node_group_index'], columns=['node_group_index'])
+    current_file_node_id = pd.DataFrame(current_file['nodes'][network_name]['node_id'], columns=['node_id'])
+    current_file_node_type_id = pd.DataFrame(current_file['nodes'][network_name]['node_type_id'], columns=['node_type_id'])
+    test_df = pd.concat([current_file_node_group_id,current_file_node_group_index, current_file_node_id, current_file_node_type_id],axis=1)
+
+    dynamics_params_list= current_file['nodes'][network_name]['0']['dynamics_params']
+    dynamics_params_list_str = [x.decode('ascii') for x in dynamics_params_list]
+    node_params_table = pd.DataFrame(dynamics_params_list_str,columns=['dynamics_params'])
+    
+    node_position_table = pd.DataFrame(current_file['nodes'][network_name]['0']['positions'],columns=['x','y','z'])
+    
+    node_params_position_table = pd.concat([test_df,node_params_table,node_position_table], axis=1)
+    current_file.close()
+    return nodes_csv_table, node_params_position_table
         
 
 
