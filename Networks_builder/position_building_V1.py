@@ -136,6 +136,7 @@ def create_layer_population_loc(Layer_pop_dict, ctx=None, do_plot=False):
 def add_nodes_V1_in_nrrd (dict_path,factor) : 
 	v1_info=json.load(open(dict_path,'r'))
 	nets=[]
+	dataframes=[]
 	for layer in v1_info.keys() : 
 		location=v1_info[layer]["layer_name"]
 		layer_factor_name=layer+"_factor_"+str(factor)
@@ -150,6 +151,8 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 			pop_names.append(subtype["pop_name"])
 			proportions.append(subtype["proportion"])
 		layer_location.add_positions_nrrd(path_nrrd,maximum_density,pop_names=pop_names,partitions=proportions,method='prog',verbose=True)
+		df_layer=get_population_loc_df(layer_location)
+		dataframes.append(df_layer)
 		net=NetworkBuilder(layer_factor_name)
 		for i,subtype in enumerate(v1_info[layer]["nodes_descriptions"]) : 
 		
@@ -164,14 +167,16 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 				       tuning_angle=np.linspace(0.0,360.0,getattr(layer_location,pop_names[i]).N)
 			)
 		nets.append(net)
-	return(nets)
+	return(nets,dataframes)
 
 
 if __name__ == '__main__':
 	dict_path="../Additional_data/dict_v1_nodes.json"
-	l1,l23,l4,l5,l6=add_nodes_V1_in_nrrd (dict_path,1) #factor = 1 (100% of the nodes)
-	l1.build()
-	l1.save("../Networks/nodes") #only built layer 1 as an example of application
+	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
+	plot_population(dataframes[0]) #plot l1 neurons
+	#net_layers[0].build() #build l1 nodes
+	#net_layers[0].save("../Networks/nodes") #save l1 nodes
+	
 
 
 
