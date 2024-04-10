@@ -207,8 +207,5 @@ if __name__ == '__main__':
 	#net_layers[0].build() #build l1 nodes
 	#net_layers[0].save("../Networks/nodes") #save l1 nodes
 	
-<<<<<<< HEAD
-=======
-	
->>>>>>> 77d082a (updated get_population_loc_df to add tuning_angle if present in node description)
+
 
