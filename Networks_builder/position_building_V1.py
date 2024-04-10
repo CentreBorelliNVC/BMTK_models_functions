@@ -71,8 +71,9 @@ def create_column(param_dict, layer_list, do_plot = False):
 
 def plot_population(position_df):
     
-    fig = px.scatter_3d(position_df, x='x', y='y', z='z',color='Cell_type')
+    fig = px.scatter_3d(position_df, x='x', y='z', z='y',color='Cell_type')
     fig.update_traces(marker_size=4)
+    fig.update_scenes(zaxis_autorange="reversed")
     fig.show('browser')
     
     return position_df
