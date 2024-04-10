@@ -201,8 +201,6 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 if __name__ == '__main__':
 	dict_path="../Additional_data/dict_v1_nodes.json"
 	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
-	print(dataframes[0])
-	print(dataframes[1])
 	#plot_population(dataframes[0]) #plot l1 neurons
 	#net_layers[0].build() #build l1 nodes
 	#net_layers[0].save("../Networks/nodes") #save l1 nodes
