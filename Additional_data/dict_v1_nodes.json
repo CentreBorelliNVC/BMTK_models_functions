@@ -484,7 +484,7 @@
      	   "dynamics_params": "L6_vip_566736311_neuron_config.json"
      	 },
      	 {
-     	   "pop_name" : "VIP",
+     	   "pop_name" : "htr3a",
      	   "proportion" : 0.06,
      	   "ei":"i",
      	   "model_type":"point_process",
