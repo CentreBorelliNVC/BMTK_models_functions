@@ -28,7 +28,7 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 	else : 
 		return(0)
 
-def distance_edges_within (net,dict_types,n_synapses) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
+def distance_edges_within (net,df_connection_info,dict_types,n_synapses) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
 	for i in np.arange(df_connection_info.shape[0]) : 
 		pre_type=df_connection_info.loc[i]["pre"]
 		post_type=df_connection_info.loc[i]["post"]
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 	dict_types["sst"]=["SST1","SST2","SST3"]
 	dict_types["vip"]=["VIP1","VIP2","VIP3","VIP4"]
 	dict_types["htr3a"]=["htr3a"]
-	net=distance_edges_within(net_layers[2],df_connection_info,dict_types)
+	net=distance_edges_within(net_layers[2],df_connection_info,dict_types,n_synapses)
 	#net.build() #all connections within l4
 
 	
