@@ -28,7 +28,7 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 	else : 
 		return(0)
 
-def distance_edges_within (net,dict_types) : 
+def distance_edges_within (net,dict_types,n_synapses) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
 	for i in np.arange(df_connection_info.shape[0]) : 
 		pre_type=df_connection_info.loc[i]["pre"]
 		post_type=df_connection_info.loc[i]["post"]
@@ -38,7 +38,7 @@ def distance_edges_within (net,dict_types) :
 					source={'pop_name':pre_subtype},
 					target={'pop_name':post_subtype},
 					connection_rule=distance_connection,
-					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':1},
+					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses},
         				syn_weight=df_connection_info.loc[i]["weight"],
 					delay= np.random.uniform(1,3),
 					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
