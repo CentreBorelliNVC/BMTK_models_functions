@@ -5,6 +5,7 @@ import plotly.express as px
 import math
 import numpy as np
 import json
+from position_building_V1 import get_population_loc_df,create_layer_population_loc,add_nodes_V1_in_nrrd
 
 def distance (x_pre,x_post,z_pre,z_post) :
 	d=np.sqrt((x_pre-x_post)**2+(z_pre-z_post)**2)
@@ -27,9 +28,7 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 	else : 
 		return(0)
 
-def distance_edges_within (path_node,node_name,df_connection_info,dict_types) : 
-	net=NetworkBuilder("cortex_l4_factor_0.1")
-	net.import_nodes(nodes_file_name=path_node+f'{node_name}_nodes.h5',node_types_file_name=path_node+f'/{node_name}_node_types.csv')
+def distance_edges_within (net,dict_types) : 
 	for i in np.arange(df_connection_info.shape[0]) : 
 		pre_type=df_connection_info.loc[i]["pre"]
 		post_type=df_connection_info.loc[i]["post"]
@@ -49,7 +48,8 @@ def distance_edges_within (path_node,node_name,df_connection_info,dict_types) :
 
 
 if __name__ == '__main__':
-	path_node='../Networks/nodes/'
+	dict_path="../Additional_data/dict_v1_nodes.json"
+	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
 	df_connection_info="../Additional_data/l4_to_l4_connections_info.csv"
 	dict_types=dict()
 	dict_types["exc"]=["exc1","exc2","exc3","exc4","exc5","exc6","exc7"]
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 	dict_types["sst"]=["SST1","SST2","SST3"]
 	dict_types["vip"]=["VIP1","VIP2","VIP3","VIP4"]
 	dict_types["htr3a"]=["htr3a"]
-	net=distance_edges_within('../Networks/nodes/','cortex_l4_factor_0.1',df_connection_info,dict_types)
+	net=distance_edges_within(net_layers[2],df_connection_info,dict_types)
 	#net.build() #all connections within l4
 
 	
