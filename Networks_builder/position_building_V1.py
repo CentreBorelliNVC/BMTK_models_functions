@@ -193,7 +193,6 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 			)
 		nets.append(net)
 		df_layer=get_population_loc_df(layer_location)
-		print(df_layer)
 		dataframes.append(df_layer)
 	return(nets,dataframes)
 
