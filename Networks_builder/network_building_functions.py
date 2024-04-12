@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	n_synapses=10
 	
 	#output parameter
-	output_dir="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/Networks/l4_to_l4/network_bis"
+	output_dir="../Networks/l4_to_l4"
 
 	build_network (dict_node_path,factor,df_connection_info,dict_types,n_synapses,output_dir)
 	
