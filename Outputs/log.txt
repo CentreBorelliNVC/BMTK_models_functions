@@ -1,0 +1,9 @@
+2024-04-10 17:01:19,035 [INFO] Created log file
+2024-04-10 17:01:19,087 [INFO] Batch processing nodes for cortex_l4_factor_0.1/0.
+2024-04-10 17:01:19,128 [INFO] Setting up output directory
+2024-04-10 17:01:19,130 [INFO] Building cells.
+2024-04-10 17:01:19,396 [INFO] Building recurrent connections
+2024-04-10 17:01:19,886 [INFO] Network created.
+2024-04-10 17:01:30,169 [INFO] Starting Simulation
+2024-04-10 17:03:24,240 [INFO] Simulation finished, finalizing results.
+2024-04-10 17:04:34,131 [INFO] Done.

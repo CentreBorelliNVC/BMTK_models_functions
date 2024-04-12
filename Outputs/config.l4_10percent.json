@@ -1,0 +1,61 @@
+{
+  "target_simulator": "NEST",
+  "run": {
+    "tstart": 0.0,
+    "tstop": 1000.0,
+    "dt": 0.1
+  },
+  "inputs": {
+    "current_clamp": {
+      "input_type": "current_clamp",
+      "module": "IClamp",
+      "node_set": {
+        "population": "cortex_l4_factor_0.1",
+        "pop_name": "exc1"
+      },
+      "gids": "all",
+      "amp": 1000,
+      "delay": 200.0,
+      "duration": 500
+    }
+  },
+  "components": {
+    "filter_models_dir": "../Components/filter_models",
+    "__pycache___dir": "../Components/__pycache__",
+    "synaptic_models_dir": "../Components/synaptic_models",
+    "point_neuron_models_dir": "../Components/point_neuron_models"
+  },
+  "output": {
+    "log_file": "../Outputs/log.txt",
+    "output_dir": "../Outputs",
+    "spikes_file": "../Outputs/spikes.h5",
+    "quiet_simulator": true
+  },
+  "reports": {
+    "V_m_report": {
+      "variable_name": "V_m",
+      "cells": {
+        "population": "cortex_l4_factor_0.1"
+      },
+      "module": "membrane_report",
+      "sections": "soma"
+    }
+  },
+  "networks": {
+    "nodes": [
+      {
+        "nodes_file": "../Networks/nodes/cortex_l4_factor_0.1_nodes.h5",
+        "node_types_file": "../Networks/nodes/cortex_l4_factor_0.1_node_types.csv"
+      }
+    ],
+    "edges": [
+      {
+        "edges_file": "../Networks/l4_to_l4/cortex_l4_factor_0.1_cortex_l4_factor_0.1_edges.h5",
+        "edge_types_file": "../Networks/l4_to_l4/cortex_l4_factor_0.1_cortex_l4_factor_0.1_edge_types.csv"
+      }
+    ],
+    "gap_juncs": []
+  },
+  "config_path": "/Users/julienballbe/My_Work/BMTK/BMTK_models_functions/Config_files/config.l4_10percent.json",
+  "config_dir": "/Users/julienballbe/My_Work/BMTK/BMTK_models_functions/Config_files"
+}

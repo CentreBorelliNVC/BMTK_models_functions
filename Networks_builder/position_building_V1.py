@@ -5,6 +5,10 @@ import plotly.express as px
 import math
 import numpy as np
 import json
+import random
+from random import sample
+import copy
+import General_functions as gen_func
 
 
 
@@ -78,6 +82,19 @@ def plot_population(position_df):
     
     return position_df
 
+def plot_network(network_name,network_folder):
+    
+    network_csv_table, network_h5_table = gen_func.get_nodes_csv_and_h5_table(network_name,network_folder)
+    network_h5_table = network_h5_table.astype({'node_type_id':'int'})
+    Full_network_table = pd.merge(network_csv_table,network_h5_table, on ='node_type_id')
+    
+    fig = px.scatter_3d(Full_network_table, x='x', y='z', z='y',color='pop_name')
+    fig.update_traces(marker_size=4)
+    fig.update_scenes(zaxis_autorange="reversed")
+    fig.show('browser')
+    
+    
+    
 def get_population_loc_df(cell_location_obj):
     # /!\ added a condition for the tuning angle (if tuning_angle = True --> add tuning angle column)
     for pop_name in cell_location_obj._all_pop_names : 
@@ -139,6 +156,162 @@ def create_layer_population_loc(Layer_pop_dict, ctx=None, do_plot=False):
         plot_population(position_df)
 
     return ctx, position_df
+
+def function_create_nodes_dict(model_list, layer_prop_dict, position_obj):
+    model_file_name_df = pd.DataFrame(columns = ['Model_file','Layer','cell_type'])
+    node_dict={}
+    N_tot = 0
+    for elt in model_list:
+        layer, cell_type, rest = elt.split('_',2)
+        new_line = pd.DataFrame([elt, layer, cell_type]).T
+        new_line.columns = model_file_name_df.columns
+        model_file_name_df = pd.concat([model_file_name_df, new_line],ignore_index=True)
+        
+    # for each layer, get model list to respect specified cell type proportion 
+    population_position_df = get_population_loc_df(position_obj)
+    
+    
+    
+    for layer in layer_prop_dict.keys(): 
+        position_obj_modified = copy.deepcopy(position_obj)
+        layer_positions_list = position_obj_modified._all_pop_names
+
+        #get the position array that correspond to the layer of interest, so that we can partition it in the cell type loop
+        layer_index = layer_positions_list.index(layer)
+        layer_position_array = position_obj_modified._all_positions[layer_index]
+        
+        
+        
+        current_df = model_file_name_df[model_file_name_df['Layer'] == layer]
+       
+        cell_type_prop_dict = layer_prop_dict[layer]
+        
+        
+        
+        
+        # split coordinates so that we can pass them direclty to add nodes cell-type-wise
+        Layer_positions_df = population_position_df.loc[population_position_df.loc[:,'Cell_type'] == layer,:]
+        layer_N = Layer_positions_df.shape[0]
+        Layer_positions_df = Layer_positions_df.reset_index(drop=True)
+        Layer_positions_index = Layer_positions_df.index.values
+        
+        layer_pop_size = {}
+        for cell_type in cell_type_prop_dict.keys():
+            if cell_type == 'N':
+                continue
+            cell_type_prop = cell_type_prop_dict[cell_type]
+            desired_cell_Type_count = round(cell_type_prop * layer_N)
+            layer_pop_size['cell_type'] = desired_cell_Type_count
+        
+        #randomly partition position_df indexes
+        random.shuffle(Layer_positions_index)
+        # cell_type_size = layer_pop_size.values()
+        # random_positions_lists = [Layer_positions_index[i:j] for i, j in zip([0] + np.cumsum(cell_type_size).tolist(), np.cumsum(cell_type_size).tolist())]
+        
+        
+        
+        # for each cell type get model list to respect specified cell type proportion 
+        last_index = 0
+        
+        layer_node_dict = {'Layer' : layer,
+                           'N' : layer_N}
+        
+        for cell_type in cell_type_prop_dict.keys():
+            # create a copy of original position obj so we can modify it
+            cell_type_position_obj = copy.deepcopy(position_obj)
+            if cell_type == 'N':
+                continue
+            
+            cell_type_pop_name = f'{layer}_{cell_type}'
+            
+            # is the cell type exc or inh
+            if 'Exc'.casefold() in cell_type.casefold():
+                ei='e'
+            else:
+                ei='i'
+            
+            #determine number of nodes required for this cell type
+            cell_type_prop = cell_type_prop_dict[cell_type]
+            desired_cell_Type_count = round(cell_type_prop * layer_N)
+            N_tot += desired_cell_Type_count
+            
+            #get random list of coordinated, one coord for each node, and select the corresponding list
+            layer_cell_type_position_index =  Layer_positions_index[last_index:(last_index+desired_cell_Type_count)]
+            layer_cell_type_position_array = layer_position_array[layer_cell_type_position_index]
+            
+            
+            #modify the list and pop name in the current cell position object
+            cell_type_position_obj._all_positions[0] = layer_cell_type_position_array
+            cell_type_position_obj._all_pop_names[0] = cell_type_pop_name
+            
+            # remove if any the other positoon and pop names
+            cell_type_position_obj._all_positions = cell_type_position_obj._all_positions[:1] 
+            cell_type_position_obj._all_pop_names = cell_type_position_obj._all_pop_names[:1] 
+            
+            #make sure to iterate to not pick the same coordinates twice
+            last_index += desired_cell_Type_count
+          
+
+            layer_cell_type_df = current_df[current_df['cell_type'].str.contains(cell_type, case=False)]
+            cell_type_models = layer_cell_type_df.loc[:,'Model_file'].tolist()
+            
+
+            selected_cell_type_model = []
+            # select desired number of model file, repeat if need more model file than different model file
+            # can add an option to select model based on probability distribution 
+            while len(selected_cell_type_model) < desired_cell_Type_count: 
+                
+                needed_model_id = desired_cell_Type_count-len(selected_cell_type_model)
+                
+                # here each model has an equal chance of being selected --> uniform distribution 
+                current_selected_models = sample(cell_type_models, min(desired_cell_Type_count,needed_model_id,len(cell_type_models) ))
+                selected_cell_type_model = selected_cell_type_model + current_selected_models
+
+               
+            layer_cell_type_node_dict = {'pop_name' : cell_type_pop_name,
+                                         'N' : desired_cell_Type_count,
+                                         'ei':ei,
+                                         'position_obj' : cell_type_position_obj,
+                                         'model_list' : selected_cell_type_model}
+            
+            layer_node_dict[cell_type] = layer_cell_type_node_dict
+        node_dict['N_tot'] = N_tot
+        node_dict[layer] =  layer_node_dict  
+        
+    return node_dict
+            
+
+def function_build_nodes(node_dict, network_dir):
+    
+    
+    net = NetworkBuilder('Cort_col')
+    pop_names = {key: value for key, value in node_dict.items() if key != 'N_tot'}
+    
+    for current_Layer, current_layer_dict in node_dict.items():
+        if current_Layer == 'N_tot':
+            continue
+        
+        for current_population, current_pop_dict in current_layer_dict.items():
+            if current_population=='Layer' or current_population == 'N':
+                continue
+            position_obj = current_pop_dict['position_obj']
+            
+            net.add_nodes(N=current_pop_dict['N'],  # Create a population of 80 neurons
+                          positions = position_obj._all_positions[0],
+                          
+                          pop_name=current_pop_dict['pop_name'],
+                          
+        
+                          ei= current_pop_dict['ei'],  # optional parameters
+                          model_type='point_process',  # Tells the simulator to use point-based neurons
+                          model_template='nest:glif_lif_asc_psc',  # tells the simulator to use NEST iaf_psc_alpha models
+                          dynamics_params=current_pop_dict['model_list'] # File containing iaf_psc_alpha mdoel parameters
+                         )
+    
+    net.build()
+    net.save_nodes(output_dir=network_dir)
+    
+
     
 #%%
 
@@ -197,12 +370,12 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 	return(nets,dataframes)
 
 
-if __name__ == '__main__':
-	dict_path="../Additional_data/dict_v1_nodes.json"
-	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
-	#plot_population(dataframes[0]) #plot l1 neurons
-	#net_layers[0].build() #build l1 nodes
-	#net_layers[0].save("../Networks/nodes") #save l1 nodes
-	
+# if __name__ == '__main__':
+# 	dict_path="../Additional_data/dict_v1_nodes.json"
+# 	net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
+# 	#plot_population(dataframes[0]) #plot l1 neurons
+# 	#net_layers[0].build() #build l1 nodes
+# 	#net_layers[0].save("../Networks/nodes") #save l1 nodes
+# 	
 
 
