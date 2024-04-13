@@ -300,7 +300,7 @@ def function_build_nodes(node_dict, network_dir):
                           positions = position_obj._all_positions[0],
                           
                           pop_name=current_pop_dict['pop_name'],
-                          
+                          layer = current_pop_dict['pop_name'].split('_')[0],
         
                           ei= current_pop_dict['ei'],  # optional parameters
                           model_type='point_process',  # Tells the simulator to use point-based neurons
