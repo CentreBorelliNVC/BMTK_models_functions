@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from bmtk.simulator import pointnet
 import nest
 from bmtk.analyzer.spike_trains import plot_raster
