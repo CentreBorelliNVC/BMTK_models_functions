@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from bmtk.builder.auxi.node_params import positions_columnar,CellLocations
 import pandas as pd
 from bmtk.builder.networks import NetworkBuilder
