@@ -23,6 +23,22 @@ def frequency_input (hz,stimulation_times,folder_path) :
 	duration=stimulation_times[1]-stimulation_times[0]
 	psg.to_sonata(folder_path+'/spikes_'+str(hz)+'Hz_'+str(round(duration))+'s.h5')
 
+def pA_input (amplitude,delay,duration,population,pop_name,config_file) : 
+	"""
+	Change the config_file to adapt to the given pA input
+	"""
+	with open (config_file,'r') as f:
+		data=json.load(f)
+		data["inputs"]["current_clamp"]["node_set"]["population"]=population
+		data["inputs"]["current_clamp"]["node_set"]["pop_name"]=pop_name
+		data["inputs"]["current_clamp"]["amp"]=float(amplitude)
+		data["inputs"]["current_clamp"]["delay"]=float(delay)
+		data["inputs"]["current_clamp"]["delay"]=duration
+	os.remove(filename)
+	with open(filename,'w') as f : 
+		json.dump(data,f,indent=4)
+
+
 """
 if __name__ == '__main__':
 	hz=1000
