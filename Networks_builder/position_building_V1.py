@@ -368,7 +368,63 @@ def add_nodes_V1_in_nrrd (dict_path,factor) :
 		nets.append(net)
 		df_layer=get_population_loc_df(layer_location)
 		dataframes.append(df_layer)
+
 	return(nets,dataframes)
+
+def node_interval (cell_type_name,df_csv,list_id_type) :
+    """
+    For a given neuron type, it returns the neuron id interval within the list of all neuron ids present in the node csv file (SONATA)
+    -----
+    :param cell_type_name: str
+        cell type name (has to match one of the pop_name in the node csv file (SONATA)
+    :param df_csv : dataframe
+        the node csv file (SONATA) in a dataframe format
+    :param list_id_type: list
+        the node_type_id list from the node h5 file (SONATA)
+    -----
+    :return: list
+        list of 2 values : the first and the last neuron id of the given cell type in the the node_type_id list from the node h5 file (SONATA)
+    """
+    df_1=df_csv.loc[df_csv["model_name"]==cell_type_name]
+    node_id=int(list(df_1["node_type_id"])[0])
+    pre_start=list_id_type.index(node_id)
+    list_id_type.reverse()
+    pre_end= len(list_id_type)-list_id_type.index(node_id)
+    list_id_type.reverse()
+    return([pre_start,pre_end])
+
+def lgn_node_from_SONATA (csv_path,h5_file) : 
+	"""
+	Create a node/net object from an already existing lgn node SONATA file
+	"""
+	net=NetworkBuilder('lgn')
+	h5=h5py.File(h5_file)
+	csv_file=pd.read_csv(csv_path,sep=" ")
+	list_split=csv_path.split("/")
+	object_name=list_split[-1].split("_")
+	list_id_type=list(h5["nodes"][object_name[0]]["node_type_id"][()])
+	for name,subtype,model_type,model_template,dynamic_params,non_dom_params,sf_sep in zip(list(csv_file["model_name"]),list(csv_file["subtype"]),list(csv_file["model_type"]),list(csv_file["model_template"]),list(csv_file["dynamics_params"]),list(csv_file["non_dom_params"]),list(csv_file["sf_sep"])) :
+        	interval=node_interval(name,csv_file,list_id_type)
+        	x = list(h5["nodes"][object_name[0]]["0"]["x"][()])[interval[0]:interval[1]]
+        	y = list(h5["nodes"][object_name[0]]["0"]["y"][()])[interval[0]:interval[1]]
+        	tuning_angle=list(h5["nodes"][object_name[0]]["0"]["tuning_angle"][()])[interval[0]:interval[1]]
+        	spatial_size=list(h5["nodes"][object_name[0]]["0"]["spatial_size"][()])[interval[0]:interval[1]]
+        	net.add_nodes(
+        		N=len(tuning_angle),  # n_cells,
+        		model_name=name,
+        		location='LGN',
+        		subtype=subtype,
+        		model_type=model_type,
+        		model_template=model_template,
+        		dynamics_params=dynamic_params,
+        		non_dom_params=None if pd.isnull(non_dom_params) else non_dom_params,
+        		x=x,
+        		y=y,
+        		tuning_angle=tuning_angle,
+        		spatial_size=spatial_size,
+        		sf_sep=None if pd.isnull(sf_sep) else sf_sep
+    		)
+	return(net)
 
 
 # if __name__ == '__main__':
