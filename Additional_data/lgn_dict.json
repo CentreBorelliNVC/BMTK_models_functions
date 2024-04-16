@@ -1,0 +1,148 @@
+{
+  "sON_TF1": {
+    "N": 1050,
+    "model_name": "sON_TF1",
+    "subtype": "sON",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sON_TF1",
+    "dynamics_params": "sON_TF1.json",
+    "size_range": [2, 10],
+    "tuning_angle": "False"
+  },
+  "sON_TF2": {
+    "N": 750,
+    "model_name": "sON_TF2",
+    "subtype": "sON",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sON_TF2",
+    "dynamics_params": "sON_TF2.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sON_TF4": {
+    "N": 1050,
+    "model_name": "sON_TF4",
+    "subtype": "sON",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sON_TF4",
+    "dynamics_params": "sON_TF4.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sON_TF8": {
+    "N": 2250,
+    "model_name": "sON_TF8",
+    "subtype": "sON",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sON_TF8",
+    "dynamics_params": "sON_TF8.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sOFF_TF1": {
+    "N": 1200,
+    "model_name": "sOFF_TF1",
+    "subtype": "sOFF",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sOFF_TF1",
+    "dynamics_params": "sOFF_TF1.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sOFF_TF2": {
+    "N": 1200,
+    "model_name": "sOFF_TF2",
+    "subtype": "sOFF",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sOFF_TF2",
+    "dynamics_params": "sOFF_TF2.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sOFF_TF4": {
+    "N": 2250,
+    "model_name": "sOFF_TF4",
+    "subtype": "sOFF",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sOFF_TF4",
+    "dynamics_params": "sOFF_TF4.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sOFF_TF8": {
+    "N": 1200,
+    "model_name": "sOFF_TF8",
+    "subtype": "sOFF",
+    "ei": "e",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sOFF_TF8",
+    "dynamics_params": "sOFF_TF8.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sOFF_TF15": {
+    "N": 1050,
+    "subtype": "sOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sOFF_TF15",
+    "dynamics_params": "sOFF_TF15.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "tOFF_TF4": {
+    "N": 1500,
+    "subtype": "tOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:tOFF_TF4",
+    "dynamics_params": "tOFF_TF4.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "tOFF_TF8": {
+    "N": 750,
+    "subtype": "tOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:tOFF_TF8",
+    "dynamics_params": "tOFF_TF8.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "tOFF_TF15": {
+    "N": 1200,
+    "subtype": "tOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:tOFF_TF15",
+    "dynamics_params": "tOFF_TF15.json",
+    "size_range": [6],
+    "tuning_angle": "False"
+  },
+  "sONsOFF_001": {
+    "N": 1200,
+    "subtype": "sONsOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sONsOFF_001",
+    "dynamics_params": "sOFF_TF4.json",
+    "non_dom_params": "sON_TF4.json",
+    "size_range": [6],
+    "sf_sep": 6.0,
+    "tuning_angle": "True"
+  },
+  "sONtOFF_001": {
+    "N": 750,
+    "subtype": "sONtOFF",
+    "model_type": "virtual",
+    "model_template": "lgnmodel:sONtOFF_001",
+    "dynamics_params": "tOFF_TF8.json",
+    "non_dom_params": "sON_TF4.json",
+    "size_range": [9],
+    "sf_sep": 4.0,
+    "tuning_angle": "True"
+  }
+}
