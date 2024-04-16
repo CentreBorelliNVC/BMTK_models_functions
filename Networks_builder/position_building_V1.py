@@ -11,7 +11,8 @@ from random import sample
 import copy
 import General_functions as gen_func
 import h5py
-
+import warnings
+warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
 #%%
@@ -430,5 +431,171 @@ def lgn_node_from_SONATA (csv_path,h5_file) :
 
 #FUNCTION TO PLACE THE LGN CELLS ACCORDING TO A GRID
 	
+def is_prime(n):
+  for i in range(2,n):
+    if (n%i) == 0  :
+      return False
+  return True
 
+def save_set_placement (liste_x,liste_y,x_grids,y_grids,liste_names,name_output_file) :
+    df = pd.DataFrame()
+    for ecart, names in zip(np.arange(0, len(liste_x), x_grids * y_grids), liste_names):
+        ecart_x = liste_x[ecart:ecart + (x_grids * y_grids)]
+        ecart_y = liste_y[ecart:ecart + (x_grids * y_grids)]
+        names_x = names + "_x"
+        names_y = names + "_y"
+        df[names_x] = ecart_x
+        df[names_y] = ecart_y
+    df.to_csv(name_output_file+".csv")
+
+def set_placement (x_grids,y_grids,lgn_models,field_size,lgn_fraction):
+    n_blocks = x_grids * y_grids
+    tile_width = field_size[0] / x_grids 
+    tile_height = field_size[1] / y_grids 
+    all_x = []
+    all_y = []
+    for model_name, params in lgn_models.items():
+        n_cells = int(params['N']*lgn_fraction)
+        per_block = n_cells / n_blocks
+        prime = is_prime(int(per_block))
+        xs = []
+        ys = []
+        if prime == True:
+            per_block_bis = per_block + 1
+            row = 2
+            col = int(per_block_bis / 2)
+            tile_width_bis = tile_width / row
+            tile_height_bis = tile_height / col
+            for r in range(row):
+                for c in range(col):
+                    xs.append(np.random.uniform(r * tile_width_bis, (r + 1) * tile_width_bis))
+                    ys.append(np.random.uniform(c * tile_height_bis, (c + 1) * tile_height_bis))
+            xs = xs[:-1]
+            ys = ys[:-1]
+
+        else:
+            if per_block % 2 != 0:
+                row = 3
+            else:
+                row = 2
+            col = int(per_block / row)
+            tile_width_bis = tile_width / row
+            tile_height_bis = tile_height / col
+            for r in range(row):
+                for c in range(col):
+                    xs.append(np.random.uniform(r * tile_width_bis, (r + 1) * tile_width_bis))
+                    ys.append(np.random.uniform(c * tile_height_bis, (c + 1) * tile_height_bis))
+        all_x.append(xs)
+        all_y.append(ys)
+    temp_x = []
+    temp_y = []
+    for box_x, box_y in zip(all_x, all_y):
+        for i in np.arange(0, field_size[0], field_size[0] / x_grids): #16
+            for j in np.arange(0, field_size[1], field_size[1] / y_grids): #12
+                temp_x.append(list(np.array(box_x) + (i)))
+                temp_y.append(list(np.array(box_y) + (j)))
+    return(temp_x,temp_y)
+
+def plot_grid_set (list_x,list_y,n_blocks,colors,x_grids,y_grids,azimuth_range,elevation_range) :
+    for i, c in zip(np.arange(0, len(list_x), n_blocks), colors):
+        ecart_x = list_x[i:i + n_blocks] #150
+        ecart_y = list_y[i:i + n_blocks]
+
+
+        for j, z in zip(ecart_x, ecart_y):
+
+            plt.scatter(j, z, c=c, s=10)
+
+    for i in np.arange(0, 127, elevation_range/y_grids): #0,132,12
+        plt.axhline(i, color="black")
+    for j in np.arange(0, 250, azimuth_range/x_grids): #0,256,16
+        plt.axvline(j, color="black")
+    plt.show()
+
+def split_list(list_str) :
+    """
+    split a list of str to only keep the str numbers and store it in a list (complementary to convert_df function)
+    -----
+    :param list_str: list
+        list of str (which has the "[","]" and "," symbols)
+    -----
+    :return: list
+        a list of int
+    """
+    liste = []
+    if len(list_str)==2 :
+        return(liste)
+    b = list_str.split("[")
+    c = b[1].split("]")
+    d = c[0].split(", ")
+    liste=[float(i) for i in d]
+    return (liste)
+
+def convert_df (df) : #convert str lists to lists
+    """
+    If the lists within the dataframe are considered as str, it converts these str into a list of int (complementary to load_grid_csv function)
+    :param df: dataframe
+        dataframe containing str instead of list
+    -----
+    :return: dataframe
+        dataframe containing lists (instead of str)
+    """
+    df=df.drop(list(df.columns)[0],axis=1)
+    for i in np.arange(df.shape[0]):
+        for j in list(df.columns):
+            box = df.loc[i][j]
+            b = split_list(box)
+            df.loc[i, str(j)] = b
+    return(df)
+
+def generate_liste(name,df) :
+    type_x = []
+    type_y = []
+    for i, j in zip(list(df[name+"_x"]), list(df[name+"_y"])):
+        type_x.extend(i)
+        type_y.extend(j)
+    return(type_x,type_y)
+
+def bmtk_nodes_set(lgn_models,df,out_dir,filename,lgn_fraction) : 
+    set_placement = NetworkBuilder(filename)
+    for model_name, params in lgn_models.items():
+    	
+        n_cells = int(params['N']*lgn_fraction)
+        x, y = list(generate_liste(model_name, df)[0]), list(generate_liste(model_name, df)[1])
+        spatial_size= params["size_range"]
+        set_placement.add_nodes(
+            N=len(x), 
+            model_name=model_name,
+            location='LGN',
+            subtype=params['subtype'],
+            model_type=params['model_type'],
+            model_template=params['model_template'],
+            dynamics_params=params['dynamics_params'],
+            non_dom_params=params.get('non_dom_params', None),
+            x=x,
+            y=y,
+            tuning_angle=[np.NaN] * len(x) if params['tuning_angle'] else np.linspace(0.0, 360.0, len(x)),
+            spatial_size= [params["size_range"]]*len(x),
+            sf_sep=params.get('sf_sep', None)
+        )
+    set_placement.build()
+    set_placement.save_nodes(output_dir=out_dir)
+
+"""
+if __name__ == '__main__':
+	dict_path="../Additional_data/lgn_dict.json"
+	lgn_models=json.load(open(dict_path,"r"))
+	lgn_fraction=0.1
+	x_grids, y_grids = 5,3 #15 , 10 ; 5,3 for 10% because we want len(x_grids)*len(y_grids) =<  smallest subtype neuron number ; we want at least 1 neuron per box 
+	field_size = (240.0, 120.0)	colors=["darkred","red","peru","orange","gold","olive","lime","mediumturquoise","cyan","dodgerblue","blue","darkorchid","magenta","pink"]
+	liste_names=["sON_TF1","sON_TF2","sON_TF4","sON_TF8","sOFF_TF1","sOFF_TF2","sOFF_TF4","sOFF_TF8","sOFF_TF15","tOFF_TF4","tOFF_TF8","tOFF_TF15","sONsOFF_001","sONtOFF_001"]
+	out_dir="../Networks/lgn/10percent"
+	out_dir_fixed_coord=out_dir+"/lgn_fixed_coord"
+	liste_x,liste_y=set_placement(x_grids,y_grids,lgn_models,field_size,lgn_fraction)
+	plot_grid_set(liste_x,liste_y,x_grids*y_grids,colors,x_grids,y_grids,field_size[0],field_size[1])
+	save_set_placement(liste_x,liste_y,x_grids,y_grids,liste_names,out_dir_fixed_coord)
+	output=pd.read_csv(out_dir_fixed_coord+".csv")
+	df=convert_df(output)
+	bmtk_nodes_set(lgn_models,df,out_dir,"lgn",lgn_fraction)
+"""
 
