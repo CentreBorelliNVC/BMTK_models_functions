@@ -1,0 +1,2 @@
+,layer,pre,post,pmax,sigma,rule,weight,synaptic_type
+0,l1,htr3a,htr3a,65.6,120,billeh,10,static_InhToInh.json
