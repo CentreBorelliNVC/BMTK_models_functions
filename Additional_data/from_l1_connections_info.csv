@@ -1,0 +1,9 @@
+,pre_layer,post_layer,pre,post,pmax,sigma,rule,weight,synaptic_type
+0,l1,l23,htr3a,exc,35.6,85,billeh,10,static_InhToExc.json
+1,l1,l23,htr3a,sst,6.8,120,billeh,10,static_InhToInh.json
+2,l1,l23,htr3a,vip,46.4,120,billeh,10,static_InhToInh.json
+3,l1,l23,htr3a,htr3a,46.4,120,billeh,10,static_InhToInh.json
+4,l1,l4,htr3a,exc,14.8,85,billeh,10,static_InhToExc.json
+5,l1,l5,htr3a,cf,14.8,85,billeh,10,static_InhToExc.json
+6,l1,l5,htr3a,it,14.8,85,billeh,10,static_InhToExc.json
+7,l1,l6,htr3a,exc,14.8,85,billeh,10,static_InhToExc.json
