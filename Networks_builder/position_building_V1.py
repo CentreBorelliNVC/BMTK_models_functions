@@ -282,7 +282,7 @@ def function_create_nodes_dict(model_list, layer_prop_dict, position_obj):
         node_dict[layer] =  layer_node_dict  
         
     return node_dict
-            
+
 
 def function_build_nodes(node_dict, network_dir):
     
