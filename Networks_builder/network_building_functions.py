@@ -13,6 +13,15 @@ def build_network (dict_node_path,factor,df_connection_info_path,dict_types,n_sy
     network=distance_edges_within(net_layers[layer_id],df_connection_info_path,dict_types,n_synapses)
     network.build()
     network.save(output_dir)
+
+def build_network_within (path_h5,path_csv,df_connection_info_path,dict_types,n_synapses,output_dir):
+	path_split=path_h5.split("/")
+	path_split_bis=path_split[-1].split("_nodes")
+	net=NetworkBuilder(path_split_bis[0])
+	net.import_nodes(nodes_file_name=path_h5,node_types_file_name=path_csv)
+	network=distance_edges_within(net,df_connection_info_path,dict_types,n_synapses)
+	network.build()
+	network.save_edges(output_dir=output_dir)
     
 def build_network_between (dict_node_path,factor,df_connection_info_path,dict_types,n_synapses,id_pre_layer,id_post_layer,output_dir) : 
 	net_layers,dataframes= add_nodes_V1_in_nrrd(dict_node_path,factor)
