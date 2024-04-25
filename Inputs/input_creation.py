@@ -39,6 +39,21 @@ def pA_input (amplitude,delay,duration,population,pop_name,config_file) :
 		json.dump(data,f,indent=4)
 
 
+def spikes_from_rates (df_id_rates,id_list,path_output,filename) : 
+	path=path_output+"/"+filename+".h5"
+	times=list(np.arange(df_id_rates.shape[0]))
+	psg=PoissonSpikeGenerator()
+	for i in id_list : 
+		node_rates=list(df_id_rates[i])
+		psg.add(
+			node_ids=i,
+			firing_rate=node_rates,
+			times=times,
+			population=filename
+		)
+
+	psg.to_sonata(path)
+
 """
 if __name__ == '__main__':
 	hz=1000
