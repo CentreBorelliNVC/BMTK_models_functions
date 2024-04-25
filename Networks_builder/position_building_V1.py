@@ -809,6 +809,23 @@ def bmtk_nodes_set(lgn_models,df,out_dir,filename,lgn_fraction) :
     set_placement.build()
     set_placement.save_nodes(output_dir=out_dir)
 
+
+def add_nodes_bkg(output_dir) : 
+	bkg = NetworkBuilder("BKG")
+	bkg.add_nodes(
+	N=1, 
+	pop_name='SG_001', 
+   	ei='e', 
+    	location='BKG',
+    	model_type='virtual'
+	)
+	bkg.save_nodes(output_dir=output_dir)
+
+"""
+if __name__ == '__main__':
+	add_nodes_bkg ("../Networks/nodes/bkg")
+"""
+
 """
 if __name__ == '__main__':
 	dict_path="../Additional_data/lgn_dict.json"
