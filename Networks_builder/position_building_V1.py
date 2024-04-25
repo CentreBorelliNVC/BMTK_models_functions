@@ -12,6 +12,11 @@ import copy
 import General_functions as gen_func
 import h5py
 import warnings
+import scipy
+from scipy.stats import skewnorm, lognorm, norm
+from scipy.special import erfc, erf
+import plotnine as p9
+
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
@@ -160,57 +165,279 @@ def create_layer_population_loc(Layer_pop_dict, ctx=None, do_plot=False):
 
     return ctx, position_df
 
-def function_create_nodes_dict(model_list, layer_prop_dict, position_obj):
+def select_models(model_feature_table, N ,method = 'Uniform', fit_table = None, feature = None, population=None, layer=None, do_plot = False):
+    '''
+    Generate a list of N models, according to a selection method. 
+    Uniform will take all available models the same amount of time
+    Distributed selects models so that the models' feature distirbution follows the corresponding distribution indicated in fit_table
+    Average selects one model whic is the closest to the feature average indicated in fit_table
+
+    Parameters
+    ----------
+    model_feature_table : pd.DataFrame
+        Table gathering for all available models the different properties.
+    N : Int
+        Number of models to select.
+    method : str, optional
+        Specify the method to delect the models. Must be Uniform, Distributed or Average. The default is 'Uniform'.
+    fit_table : pd.DataFrame, optional
+        If method not Uniform, use fit table to have the feature distribution fit parameters per population per layer. The default is None.
+    feature : str, optional
+        If method not Uniform, feature of interest for which the distribution must be respected . The default is None.
+    population : str, optional
+        If method not Uniform, population of interest for which the distribution must be respected . The default is None.
+    layer : str, optional
+        If method not Uniform, layer of interest for which the distribution must be respected . The default is None.
+    do_plot : Boolean, optional
+        if method is 'Distributed' plot the selected models' features distribution against the theorical feature distribution. The default is False.
+
+    Returns
+    -------
+    selected_cell_type_model : List
+        List of models file selected.
+    selected_cell_type_model_df : pd.DataFrame
+        DataFrame of selected models file with models' features .
+
+    '''
+    
+    selected_cell_type_model = []
+    selected_cell_type_model_df = pd.DataFrame(columns = model_feature_table.columns)
+
+    if method == 'Uniform':
+        
+        # select desired number of model file
+        # All models are selected enough time too have n models 
+        model_list = list(model_feature_table.loc[:,'file_name'])
+        while len(selected_cell_type_model) < N: 
+            
+            needed_model_id = N-len(selected_cell_type_model)
+            
+            # here each model has an equal chance of being selected --> uniform distribution 
+            current_selected_models = sample(model_list, min(N,needed_model_id,len(model_list) ))
+            selected_cell_type_model = selected_cell_type_model + current_selected_models
+    
+    elif method == 'Distributed':
+        # Given a feature distribution, attribute to each model for which the feature has been computed, a probability of being selected
+        # the probability depends on the the observed feature distribution 
+        #model_feature_table = model_feature_table.dropna([feature], inplace=True)
+        population_fit_line = fit_table.loc[(fit_table['Population']==population)&(fit_table['Layer_second']==layer)&(fit_table['Feature']==feature),:]
+
+        population_fit_line=population_fit_line.reset_index(drop=True)
+        fit = population_fit_line.loc[0,'Fit']
+        A = population_fit_line.loc[0,'A']
+        mu = population_fit_line.loc[0,'mu']
+        sigma = population_fit_line.loc[0,'sigma']
+        gamma = population_fit_line.loc[0,'gamma']
+        bin_width =population_fit_line.loc[0,'Bin_width']
+        
+        distrib_value_list = get_list_from_distrib(fit, N, mu, sigma, gamma)
+
+        feature_value = np.array(model_feature_table.loc[:,feature])
+        for val in distrib_value_list:
+            closest_model_val = min(feature_value, key=lambda x: abs(x - val))
+            closest_model_row = model_feature_table.loc[model_feature_table[feature] == closest_model_val,:]
+            if closest_model_row.shape[0]!=1: # in case two models are equally close to desired number
+                closest_model_row = closest_model_row.sample(n=1)
+                
+            
+            selected_cell_type_model_df = pd.concat([selected_cell_type_model_df, closest_model_row], ignore_index=True)
+        
+
+        selected_cell_type_model = list(selected_cell_type_model_df.loc[:,'file_name'])
+        
+        if do_plot:
+            min_x = np.nanmin(selected_cell_type_model_df.loc[:,feature])
+            max_x = np.nanmax(selected_cell_type_model_df.loc[:,feature])
+            amp_x = max_x - min_x
+            test_x_data=np.arange(min_x-.1*amp_x, max_x+.1*amp_x, .01*amp_x)
+            if fit == 'Skewed Gaussian':
+                theorical_distrib = skewedgaussian(test_x_data, A, gamma, mu, sigma)
+            elif fit == "Gaussian":
+                theorical_distrib = gaussian(test_x_data, A, mu, sigma)
+            elif fit == "LogNormal":
+                theorical_distrib = Log_normal(test_x_data, A, mu, sigma)
+                
+            
+            theorical_ditrib_df = pd.DataFrame({'Feature':test_x_data, 'Count':theorical_distrib})
+            
+            bin_df = get_data_bin_df(np.array(selected_cell_type_model_df.loc[:,feature]), bin_width)
+
+            multiplicativ_factor = np.nanmax(bin_df.loc[:,'Count'])/np.nanmax(theorical_ditrib_df.loc[:,'Count'])
+            theorical_ditrib_df.loc[:,'Count'] *= multiplicativ_factor
+            
+            my_plot = p9.ggplot(selected_cell_type_model_df, p9.aes(x=feature))+p9.geom_histogram(binwidth = bin_width)
+            my_plot += p9.geom_line(theorical_ditrib_df, p9.aes(x="Feature", y="Count"))
+            my_plot += p9.ggtitle(f'{population} neurons in layer {layer} , {feature} distribution')
+            my_plot.show()
+            
+    elif method == "Average":
+        #For each layer-population, take the model whose feature is the closest to the distribution mean
+        
+        population_fit_line = fit_table.loc[(fit_table['Population']==population)&(fit_table['Layer_second']==layer)&(fit_table['Feature']==feature),:]
+        population_fit_line=population_fit_line.reset_index(drop=True)
+        mu = population_fit_line.loc[0,'mu']
+        
+        feature_value = np.array(model_feature_table.loc[:,feature])
+        closest_model_val = min(feature_value, key=lambda x: abs(x - mu))
+        closest_model_row = model_feature_table.loc[model_feature_table[feature] == closest_model_val,:]
+
+        for elt in range(N):
+            
+            selected_cell_type_model_df = pd.concat([selected_cell_type_model_df, closest_model_row], ignore_index=True)
+        
+        selected_cell_type_model = list(selected_cell_type_model_df.loc[:,'file_name'])
+        
+    return selected_cell_type_model, selected_cell_type_model_df
+        
+        
+
+def get_list_from_distrib(model,N,  mu, sigma, gamma):
+    """
+    Generate for a given function a list of N random numbers
+
+    Parameters
+    ----------
+    model : str
+        Gaussian, LogNormal or Skeweed Gaussian.
+    N : int
+        number of float to generate.
+    mu : float
+
+    sigma : float
+
+    gamma : float
+
+
+    Returns
+    -------
+    list_values : list
+        list of float following the desired distribution.
+
+    """
+    if model =='Skewed Gaussian':
+        list_values = skewnorm.rvs( a=gamma, loc=mu, scale=sigma, size=N)
+
+    elif model == 'LogNormal':
+        list_values = lognorm.rvs(size= N, s=sigma, scale=np.exp(mu))
+        
+    elif model == 'Gaussian':
+        list_values = norm.rvs(size=N, loc=mu, scale=sigma)
+        
+    return list_values
+
+
+def skewedgaussian(x, A, gamma, mu, sigma):
+    y = (A / (sigma * np.sqrt(2 * np.pi))) * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2)) * (
+                1 + erf((gamma * (x - mu)) / (sigma * np.sqrt(2))))
+    return (y)
+
+
+def get_data_bin_df(value_array, bin_width_or_nb, bin_def = "Width"):
+    
+    if bin_def == 'Number':
+        bin_edges = np.linspace(np.nanmin(value_array), np.nanmax(value_array), bin_width_or_nb + 1) # includes right edge, so adding one to desired bin number
+        bin_width = bin_edges[1] - bin_edges[0]
+        bin_edges = np.linspace((np.nanmin(value_array)-bin_width), (np.nanmax(value_array)+bin_width),bin_width_or_nb)
+        
+    else:
+
+        bin_nb = int(((np.nanmax(value_array)+bin_width_or_nb) - (np.nanmin(value_array)-bin_width_or_nb))//bin_width_or_nb)
+
+        bin_edges = np.linspace((np.nanmin(value_array)-bin_width_or_nb), (np.nanmax(value_array)+bin_width_or_nb),bin_nb) # includes right edge, so adding one to desired bin number
+        
+        
+    current_output,current_bin_edges,current_bins_number = scipy.stats.binned_statistic(value_array,
+                                    value_array,
+                                    statistic='count',
+                                    bins=bin_edges)
+
+    bin_center_array=current_bin_edges[1:]-(current_bin_edges[1:]-current_bin_edges[:-1])/2
+    bin_count_df=pd.DataFrame({"Feature":bin_center_array,"Count":current_output})
+    
+    return bin_count_df
+
+def gaussian(x, A, mu, sigma):
+    y = (A / (sigma * np.sqrt(2 * np.pi))) * np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    return (y)
+            
+def Log_normal(x, A, mu, sigma):
+    y = (A / (sigma * np.sqrt(2 * np.pi))) * (np.exp(-((np.log(x) - mu) ** 2) / (2 * (sigma ** 2))) / x)
+   
+    return (y)
+
+def function_create_nodes_dict(model_features_table, layer_prop_dict, position_obj, Model_population_table, feature_distribution_table):
+    '''
+    Given a dictionnary describing for each layer, the populations their proportion, and how to select the models for eahc of the population
+    
+
+    Parameters
+    ----------
+    model_features_table : pd.DataFrame
+        Table gathering for all available models the different properties.
+    layer_prop_dict : Dict
+        Dictionnary describing for each layer, the populations their proportion, and how to select the models for eahc of the population .
+        layer_prop_dict = {'L4':{'PV':{'Proportion':.8,
+                                       "Model_selection":"Average",
+                                       "Feature":'Time_constant_ms'}, 
+                                 "Sst":{'Proportion':.2,
+                                        "Model_selection":"Uniform"}}}
+    position_obj 
+        BMTK object containing x,y,z coordintes for each layer. Generated by create_column function.
+    Model_population_table : pd.DataFrame
+        Table containing for each cell the different categroies they fall into. Notably Exc_Inh, Exc_Inh_FT and Cell_type which must be present in the table .
+    feature_distribution_table : pd.DataFrame
+        Table gathering feature distribution fit parameters per population per layer.
+
+    Raises
+    ------
+    ValueError
+        If the layer description dictionnary misses some information, raises Value Error.
+
+    Returns
+    -------
+    node_dict : Dictionnary
+        Dict that will be used to generate the nodes of teh network, with appropriate population proportion, coordinates and models.
+
+    '''
     model_file_name_df = pd.DataFrame(columns = ['Model_file','Layer','cell_type'])
     node_dict={}
     N_tot = 0
-    for elt in model_list:
-        layer, cell_type, rest = elt.split('_',2)
-        new_line = pd.DataFrame([elt, layer, cell_type]).T
-        new_line.columns = model_file_name_df.columns
-        model_file_name_df = pd.concat([model_file_name_df, new_line],ignore_index=True)
+    
+    #Check that layer_prop_dict has all needed information
+    for Layer, Layer_dict  in layer_prop_dict.items():
+        layer_prop=0
+        for pop, pop_dict in Layer_dict.items():
+            layer_prop+=pop_dict['Proportion']
+            if pop_dict['Model_selection'] != "Uniform" and "Feature" not in pop_dict.keys():
+                raise ValueError(f'For Layer {Layer}, population {pop}, missing feature as Model selection not Uniform')
+                
+            if pop not in Model_population_table.loc[:,"Exc_Inh"].unique() and pop not in Model_population_table.loc[:,"Exc_Inh_FT"].unique() and pop not in Model_population_table.loc[:,"Cell_type"].unique():
+                raise ValueError(f'For Layer {Layer}, population {pop} not in model population table')
+        if layer_prop != 1:
+            raise ValueError(f'For Layer {Layer}, total proportion must be 1 (here = {layer_prop})')
         
     # for each layer, get model list to respect specified cell type proportion 
     population_position_df = get_population_loc_df(position_obj)
     
     
     
-    for layer in layer_prop_dict.keys(): 
+    for layer, layer_pop_dict in layer_prop_dict.items(): 
         position_obj_modified = copy.deepcopy(position_obj)
         layer_positions_list = position_obj_modified._all_pop_names
 
         #get the position array that correspond to the layer of interest, so that we can partition it in the cell type loop
         layer_index = layer_positions_list.index(layer)
         layer_position_array = position_obj_modified._all_positions[layer_index]
-        
-        
-        
-        current_df = model_file_name_df[model_file_name_df['Layer'] == layer]
-       
-        cell_type_prop_dict = layer_prop_dict[layer]
-        
-        
-        
+
         
         # split coordinates so that we can pass them direclty to add nodes cell-type-wise
         Layer_positions_df = population_position_df.loc[population_position_df.loc[:,'Cell_type'] == layer,:]
-        layer_N = Layer_positions_df.shape[0]
+        layer_N = Layer_positions_df.shape[0] # get number of position available for the current layer
         Layer_positions_df = Layer_positions_df.reset_index(drop=True)
         Layer_positions_index = Layer_positions_df.index.values
         
-        layer_pop_size = {}
-        for cell_type in cell_type_prop_dict.keys():
-            if cell_type == 'N':
-                continue
-            cell_type_prop = cell_type_prop_dict[cell_type]
-            desired_cell_Type_count = round(cell_type_prop * layer_N)
-            layer_pop_size['cell_type'] = desired_cell_Type_count
-        
         #randomly partition position_df indexes
         random.shuffle(Layer_positions_index)
-        # cell_type_size = layer_pop_size.values()
-        # random_positions_lists = [Layer_positions_index[i:j] for i, j in zip([0] + np.cumsum(cell_type_size).tolist(), np.cumsum(cell_type_size).tolist())]
-        
         
         
         # for each cell type get model list to respect specified cell type proportion 
@@ -219,23 +446,21 @@ def function_create_nodes_dict(model_list, layer_prop_dict, position_obj):
         layer_node_dict = {'Layer' : layer,
                            'N' : layer_N}
         
-        for cell_type in cell_type_prop_dict.keys():
+        for population, population_in_layer_dict in layer_pop_dict.items():
             # create a copy of original position obj so we can modify it
             cell_type_position_obj = copy.deepcopy(position_obj)
-            if cell_type == 'N':
-                continue
             
-            cell_type_pop_name = f'{layer}_{cell_type}'
+            cell_type_pop_name = f'{layer}_{population}'
             
             # is the cell type exc or inh
-            if 'Exc'.casefold() in cell_type.casefold():
+            if 'Exc'.casefold() in population.casefold():
                 ei='e'
             else:
                 ei='i'
             
             #determine number of nodes required for this cell type
-            cell_type_prop = cell_type_prop_dict[cell_type]
-            desired_cell_Type_count = round(cell_type_prop * layer_N)
+            cell_type_in_layer_proportion = population_in_layer_dict['Proportion']
+            desired_cell_Type_count = round(cell_type_in_layer_proportion * layer_N)
             N_tot += desired_cell_Type_count
             
             #get random list of coordinated, one coord for each node, and select the corresponding list
@@ -247,37 +472,40 @@ def function_create_nodes_dict(model_list, layer_prop_dict, position_obj):
             cell_type_position_obj._all_positions[0] = layer_cell_type_position_array
             cell_type_position_obj._all_pop_names[0] = cell_type_pop_name
             
-            # remove if any the other positoon and pop names
+            # remove if any the other position and pop names
             cell_type_position_obj._all_positions = cell_type_position_obj._all_positions[:1] 
             cell_type_position_obj._all_pop_names = cell_type_position_obj._all_pop_names[:1] 
             
             #make sure to iterate to not pick the same coordinates twice
             last_index += desired_cell_Type_count
-          
-
-            layer_cell_type_df = current_df[current_df['cell_type'].str.contains(cell_type, case=False)]
-            cell_type_models = layer_cell_type_df.loc[:,'Model_file'].tolist()
             
-
-            selected_cell_type_model = []
-            # select desired number of model file, repeat if need more model file than different model file
-            # can add an option to select model based on probability distribution 
-            while len(selected_cell_type_model) < desired_cell_Type_count: 
+            #Select N model files according to the desired method specified in layer prop dict
+            model_selection_method = population_in_layer_dict['Model_selection']
+            if model_selection_method == "Uniform":
+                Feature_of_importance = None
+            else:
+                Feature_of_importance = population_in_layer_dict['Feature']
                 
-                needed_model_id = desired_cell_Type_count-len(selected_cell_type_model)
-                
-                # here each model has an equal chance of being selected --> uniform distribution 
-                current_selected_models = sample(cell_type_models, min(desired_cell_Type_count,needed_model_id,len(cell_type_models) ))
-                selected_cell_type_model = selected_cell_type_model + current_selected_models
+            layer_abrev = layer.replace("L","")
+            model_selection_list, model_selection_df= select_models(model_features_table, 
+                                                                    desired_cell_Type_count, 
+                                                                    model_selection_method, 
+                                                                    feature_distribution_table, 
+                                                                    Feature_of_importance, 
+                                                                    population, 
+                                                                    layer_abrev,
+                                                                    do_plot=False)
 
                
-            layer_cell_type_node_dict = {'pop_name' : cell_type_pop_name,
-                                         'N' : desired_cell_Type_count,
-                                         'ei':ei,
+            layer_cell_type_node_dict = {'pop_name' : cell_type_pop_name, # "L4_PV"
+                                         'N' : desired_cell_Type_count, # 300
+                                         'ei':ei, # "i"
+                                         'layer':layer,  # "L4"
+                                         'cell': population, # "PV"
                                          'position_obj' : cell_type_position_obj,
-                                         'model_list' : selected_cell_type_model}
+                                         'model_list' : model_selection_list}
             
-            layer_node_dict[cell_type] = layer_cell_type_node_dict
+            layer_node_dict[population] = layer_cell_type_node_dict
         node_dict['N_tot'] = N_tot
         node_dict[layer] =  layer_node_dict  
         
