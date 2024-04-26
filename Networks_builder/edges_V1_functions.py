@@ -77,7 +77,197 @@ def distance_edges_between (net_pre,net_post,df_connection_info_path,dict_types,
 				)
 	return(net_pre)
 	
-	
+def get_selection_probability(src_type, lgn_models_subtypes_dictionary):
+  current_model_subtypes = lgn_models_subtypes_dictionary[src_type[0:4]]['sub_types']
+  current_model_probabilities = lgn_models_subtypes_dictionary[src_type[0:4]]['probabilities']
+  lgn_model_idx = [i for i, model in enumerate(current_model_subtypes) if src_type == model][0]
+  return current_model_probabilities[lgn_model_idx]
+
+
+def select_lgn_sources(sources, target, lgn_mean, probability, poissonParameter, sON_ratio, centers_d_min,
+                       centers_d_max, ON_OFF_w_min, ON_OFF_w_max, aspectRatio_min, aspectRatio_max, N_syn):
+  
+  #print(target.node_id,target["pop_name"])
+  #for each target we have all sources taken into account
+  source_ids = [s.node_id for s in sources]
+  # Check if target supposed to get a connection and if not, then no need to keep calculating.
+  if np.random.random() > probability: #probability = 1 for all by default in the lgn_connection dict
+    return [None] * len(source_ids)
+
+  subfields_centers_distance_L = centers_d_max - centers_d_min
+  subfields_ON_OFF_width_L = ON_OFF_w_max - ON_OFF_w_min
+  subfields_width_aspect_ratio_L = aspectRatio_max - aspectRatio_min
+  x_position_lin_degrees = np.tan(0.07 * np.array(target['positions'][0]) * np.pi / 180.0) * 180.0 / np.pi
+  #x_position_lin_degrees = np.tan(0.07 * np.array(target['x']) * np.pi / 180.0) * 180.0 / np.pi
+  y_position_lin_degrees = np.tan(0.04 * np.array(target['positions'][2]) * np.pi / 180.0) * 180.0 / np.pi
+  #y_position_lin_degrees = np.tan(0.04 * np.array(target['z']) * np.pi / 180.0) * 180.0 / np.pi
+  vis_x = lgn_mean[0] + ((x_position_lin_degrees))  # - l4_mean[0]) / l4_dim[0]) * lgn_dim[0]
+  vis_y = lgn_mean[1] + ((y_position_lin_degrees))  # - l4_mean[2]) / l4_dim[2]) * lgn_dim[1]
+
+  ellipse_center_x0 = vis_x  # tar_cells[tar_gid]['vis_x']
+  ellipse_center_y0 = vis_y  # tar_cells[tar_gid]['vis_y']
+
+  tuning_angle = float(target['tuning_angle'])
+  tuning_angle = None if np.isnan(tuning_angle) else tuning_angle
+  # tuning_angle = None if math.isnan(target['tuning_angle']) else target['tuning_angle']
+  if tuning_angle is None:
+    ellipse_b0 = (ON_OFF_w_min + np.random.uniform(0.0,
+                                                   1.0) * subfields_ON_OFF_width_L) / 2.0  # Divide by 2 to convert from width to radius.
+    ellipse_b0 = 2.5 * ellipse_b0  # 1.5 * ellipse_b0
+    ellipse_a0 = ellipse_b0  # ellipse_b0
+    top_N_src_cells_subfield = 15  # 20
+    ellipses_centers_halfdistance = 0.0
+    tuning_angle_value = 0.0
+  else:
+    tuning_angle_value = float(tuning_angle)
+    ellipses_centers_halfdistance = (centers_d_min + np.random.uniform(0.0, 1.0) * subfields_centers_distance_L) / 2.0
+    ellipse_b0 = (ON_OFF_w_min + np.random.uniform(0.0,
+                                                   1.0) * subfields_ON_OFF_width_L) / 2.0  # Divide by 2 to convert from width to radius.
+    ellipse_a0 = ellipse_b0 * (aspectRatio_min + np.random.uniform(0.0, 1.0) * subfields_width_aspect_ratio_L)
+    ellipse_phi = tuning_angle_value + 180.0 + 90.0  # Angle, in degrees, describing the rotation of the canonical ellipse away from the x-axis.
+    ellipse_cos_mphi = np.cos(-np.radians(ellipse_phi))
+    ellipse_sin_mphi = np.sin(-np.radians(ellipse_phi))
+    top_N_src_cells_subfield = 8  # 10 #9
+
+    if np.random.random() < sON_ratio:
+      cell_sustained_unit = 'sON_'
+    else:
+      cell_sustained_unit = 'sOFF_'
+
+  cell_TF = np.random.poisson(poissonParameter)
+  while cell_TF <= 0:
+    cell_TF = np.random.poisson(poissonParameter)
+
+  sON_subunits = np.array([1., 2., 4., 8.])
+  sON_sum = np.sum(abs(cell_TF - sON_subunits))
+  p_sON = (1 - abs(cell_TF - sON_subunits) / sON_sum) / (len(sON_subunits) - 1)
+
+  sOFF_subunits = np.array([1., 2., 4., 8., 15.])
+  sOFF_sum = np.sum(abs(cell_TF - sOFF_subunits))
+  p_sOFF = (1 - abs(cell_TF - sOFF_subunits) / sOFF_sum) / (len(sOFF_subunits) - 1)
+
+  tOFF_subunits = np.array([4., 8., 15.])
+  tOFF_sum = np.sum(abs(cell_TF - tOFF_subunits))
+  p_tOFF = (1 - abs(cell_TF - tOFF_subunits) / tOFF_sum) / (len(tOFF_subunits) - 1)
+  #print(target.node_id,p_sON,p_sOFF,p_tOFF) #p_sON has 4 values ; p_sOFF 5 values ; p_tOFF 3 values
+  # to match previous algorithm reorganize source cells by type
+  cell_type_dict = {}
+  lgn_models = ["sON_TF1","sON_TF2","sON_TF4", "sON_TF8","sOFF_TF1","sOFF_TF2","sOFF_TF4","sOFF_TF8","sOFF_TF15","tOFF_TF4","tOFF_TF8","tOFF_TF15","sONsOFF_001","sONtOFF_001"]
+  for lgn_model in lgn_models:
+    cell_type_dict[lgn_model] = [(src.node_id, src) for src in sources if src['model_name'] == lgn_model]
+  lgn_models_subtypes_dictionary = {
+    'sON_': {'sub_types': ['sON_TF1', 'sON_TF2', 'sON_TF4', 'sON_TF8'], 'probabilities': p_sON},
+    'sOFF': {'sub_types': ['sOFF_TF1', 'sOFF_TF2', 'sOFF_TF4', 'sOFF_TF8', 'sOFF_TF15'],
+             'probabilities': p_sOFF
+             },
+    'tOFF': {'sub_types': ['tOFF_TF4', 'tOFF_TF8', 'tOFF_TF15'], 'probabilities': p_tOFF},
+  }
+
+  src_cells_selected = {}
+  for src_type in cell_type_dict.keys():
+    src_cells_selected[src_type] = []
+
+    if tuning_angle is None:
+      ellipse_center_x = ellipse_center_x0
+      ellipse_center_y = ellipse_center_y0
+      ellipse_a = ellipse_a0
+      ellipse_b = ellipse_b0
+    else:
+      if ('tOFF_' in src_type[0:5]):
+        ellipse_center_x = ellipse_center_x0 + ellipses_centers_halfdistance * ellipse_sin_mphi
+        ellipse_center_y = ellipse_center_y0 + ellipses_centers_halfdistance * ellipse_cos_mphi
+        ellipse_a = ellipse_a0
+        ellipse_b = ellipse_b0
+      elif ('sON_' in src_type[0:5] or 'sOFF_' in src_type[0:5]):
+        ellipse_center_x = ellipse_center_x0 - ellipses_centers_halfdistance * ellipse_sin_mphi
+        ellipse_center_y = ellipse_center_y0 - ellipses_centers_halfdistance * ellipse_cos_mphi
+        ellipse_a = ellipse_a0
+        ellipse_b = ellipse_b0
+      else:
+        # Make this a simple circle.
+        ellipse_center_x = ellipse_center_x0
+        ellipse_center_y = ellipse_center_y0
+        # Make the region from which source cells are selected a bit smaller for the transient_ON_OFF
+        # cells, since each source cell in this case produces both ON and OFF responses.
+        ellipse_b = ellipses_centers_halfdistance / 2.0  # 0.01
+        ellipse_a = ellipse_b0  # 0.01 #ellipse_b0
+
+    # Find those source cells of the appropriate type that have their visual space coordinates within the
+    # ellipse.
+    for src_id, src_dict in cell_type_dict[src_type]:
+      x, y = (src_dict['x'], src_dict['y'])
+      x = x - ellipse_center_x
+      y = y - ellipse_center_y
+
+      x_new = x
+      y_new = y
+      if tuning_angle is not None:
+        x_new = x * ellipse_cos_mphi - y * ellipse_sin_mphi
+        y_new = x * ellipse_sin_mphi + y * ellipse_cos_mphi
+
+      if ((x_new / ellipse_a) ** 2 + (y_new / ellipse_b) ** 2) <= 1.0:
+        #print("yes 1 : ((x_new / ellipse_a) ** 2 + (y_new / ellipse_b) ** 2) <= 1.0")
+        if tuning_angle is not None:
+          #print("tuning not none")
+          if src_type == 'sONsOFF_001' or src_type == 'sONtOFF_001':
+            #print("if yes 1 & source type sONsOFF or sONtOFF")
+            src_tuning_angle = float(src_dict['tuning_angle'])
+            delta_tuning = abs(abs(abs(180.0 - abs(tuning_angle_value - src_tuning_angle) % 360.0) - 90.0) - 90.0)
+            if delta_tuning < 15.0:
+              #print("if yes & source type sONsOFF or sONtOFF & delta_tuning < 15.0")
+              src_cells_selected[src_type].append(src_id)
+
+          # elif src_type in ['sONtOFF_001']:
+          #     src_cells_selected[src_type].append(src_id)
+
+          elif cell_sustained_unit in src_type[:5]:
+            selection_probability = get_selection_probability(src_type, lgn_models_subtypes_dictionary)
+            #print("if not sONsOFF/sONtOFF but is sON/sOFF, selected proba : ",selection_probability)
+            if np.random.random() < selection_probability:
+              #print("if is sON/sOFF, selected proba > random with source type :",src_type)
+              src_cells_selected[src_type].append(src_id)
+
+          elif 'tOFF_' in src_type[:5]:
+            selection_probability = get_selection_probability(src_type, lgn_models_subtypes_dictionary)
+            #print("if not sONsOFF/sONtOFF but is tOFF, selected proba is : ",selection_probability)
+            if np.random.random() < selection_probability:
+              #print("if not sONsOFF/sONtOFF but is tOFF, selected proba is > random")
+              src_cells_selected[src_type].append(src_id)
+
+
+        else:
+          if (src_type == 'sONsOFF_001' or src_type == 'sONtOFF_001'):
+            src_cells_selected[src_type].append(src_id)
+            #print("if tuning angle is nan : ",tuning_angle," and is sONsOFF/sONtOFF")
+          else:
+            #print("lol")
+            selection_probability = get_selection_probability(src_type, lgn_models_subtypes_dictionary)
+            #print("if tuning angle is nan : ",tuning_angle," and is sON/sOFF/tOFF ; selected proba : ",selection_probability)
+            if np.random.random() < selection_probability:
+              #print("if tuning angle is nan : ",tuning_angle,"and is sON/sOFF/tOFF and selected proba > random")
+              src_cells_selected[src_type].append(src_id)
+
+        #print(src_cells_selected)
+  select_cell_ids = [id for _, selected in src_cells_selected.items() for id in selected]
+  #print(target.node_id,select_cell_ids)
+  #a=[print(N_syn) if id in select_cell_ids else None for id in source_ids]
+  return [N_syn if id in select_cell_ids else None for id in source_ids]
+
+def lgn_to_v1_layer (net_pre,net_post,lgn_to_l4_dict,layer_types,field_size) :
+	for pop_name in layer_types :
+		#print(lgn_to_l4_dict.keys())
+		conn_props = lgn_to_l4_dict[pop_name]['connection_params']
+		conn_props['lgn_mean'] = (field_size[0]/2.0, field_size[1]/2.0)
+		edge_props = lgn_to_l4_dict[pop_name]['edge_types_params']
+		net_post.add_edges(
+			source=net_pre.nodes(),
+			target=net_post.nodes(pop_name=pop_name),
+			connection_rule=select_lgn_sources,
+			connection_params=conn_props,
+			iterator='all_to_one',
+			**edge_props
+		)
+	return(net_post)	
 
 """
 if __name__ == '__main__':
