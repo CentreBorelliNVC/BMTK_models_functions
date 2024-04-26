@@ -44,6 +44,35 @@ def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_pos
 	network.build()
 	network.save_edges(output_dir=output_dir) 
 
+def build_network_between_lgn_v1 (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,lgn_to_l4_dict,layer_types,field_size,output_dir) :
+	path_pre_split=path_pre_h5.split("/")
+	path_pre_split_bis=path_pre_split[-1].split("_nodes")
+	net_pre=NetworkBuilder(path_pre_split_bis[0])
+	path_post_split=path_post_h5.split("/")
+	path_post_split_bis=path_post_split[-1].split("_nodes")
+	net_post=NetworkBuilder(path_post_split_bis[0])
+	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
+	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
+	network=lgn_to_v1_layer(net_pre,net_post,lgn_to_l4_dict,layer_types,field_size)
+	network.build()
+	network.save_edges(output_dir=output_dir) 	
+
+
+"""
+if __name__ == '__main__':
+	lgn_to_l4_path="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/Additional_data/lgn_to_l4_dict.json"
+	lgn_to_l4_dict=json.load(open(lgn_to_l4_path,"r"))
+	layer_types=["exc1","exc2","exc3","exc4","exc5","exc6","exc7","PV1","PV2","SST1","SST2","SST3","VIP1","VIP2","VIP3","VIP4","htr3a"]
+	field_size=(240.0, 120.0)
+	output_dir="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/lgn/100p/connections"
+	pre_path_h5="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/lgn/100p/lgn_nodes.h5"
+	pre_path_csv="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/lgn/100p/lgn_node_types.csv"
+	post_path_h5="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/network_v1_01/nodes/layer_4_factor_1_nodes.h5"
+	post_path_csv="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/network_v1_01/nodes/layer_4_factor_1_node_types.csv"
+	build_network_between_lgn_v1(pre_path_h5,pre_path_csv,post_path_h5,post_path_csv,lgn_to_l4_dict,layer_types,field_size,output_dir)
+"""
+
+
 """
 if __name__ == '__main__':
 	dict_node_path="../Additional_data/dict_v1_nodes_bis.json"
