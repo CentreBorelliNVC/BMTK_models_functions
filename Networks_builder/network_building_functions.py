@@ -6,18 +6,32 @@ import math
 import numpy as np
 import json
 from position_building_V1 import get_population_loc_df,create_layer_population_loc,add_nodes_V1_in_nrrd
-from edges_V1_functions import distance,distance_connection,distance_edges_within,distance_edges_between
+from edges_V1_functions import distance,distance_connection,distance_edges_within,distance_edges_between,lgn_to_v1_layer,lgn_to_v1_layer_billeh,distance_edges_between_with_custom_delay
 
+def build_network (dict_node_path,factor,df_connection_info_path,dict_types,n_synapses,output_dir,layer_id) : 
+    net_layers,dataframes= add_nodes_V1_in_nrrd(dict_node_path,factor)
+    network=distance_edges_within(net_layers[layer_id],df_connection_info_path,dict_types,n_synapses)
+    network.build()
+    network.save(output_dir)
+
+def build_network_within (path_h5,path_csv,df_connection_info_path,dict_types,n_synapses,output_dir):
+	path_split=path_h5.split("/")
+	path_split_bis=path_split[-1].split("_nodes")
+	net=NetworkBuilder(path_split_bis[0])
+	net.import_nodes(nodes_file_name=path_h5,node_types_file_name=path_csv)
+	network=distance_edges_within(net,df_connection_info_path,dict_types,n_synapses)
+	network.build()
+	network.save_edges(output_dir=output_dir)
     
-def build_network (dict_node_path,factor,df_connection_info_path,dict_types,n_synapses,id_pre_layer,id_post_layer,output_dir) : 
-	#create at the same time the nodes and the edges
+def build_network_between (dict_node_path,factor,df_connection_info_path,dict_types,n_synapses,id_pre_layer,id_post_layer,output_dir) : 
 	net_layers,dataframes= add_nodes_V1_in_nrrd(dict_node_path,factor)
 	network=distance_edges_between(net_layers[id_pre_layer],net_layers[id_post_layer],df_connection_info_path,dict_types,n_synapses)
 	network.build()
 	network.save(output_dir) 
 	
 	
-def build_network_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir) :
+	
+def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir,custom_delay,path_velocity) :
 	path_pre_split=path_pre_h5.split("/")
 	path_pre_split_bis=path_pre_split[-1].split("_nodes")
 	net_pre=NetworkBuilder(path_pre_split_bis[0])
@@ -26,7 +40,10 @@ def build_network_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,pat
 	net_post=NetworkBuilder(path_post_split_bis[0])
 	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
 	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
-	network=distance_edges_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses)
+	if custom_delay ==True :
+		network=distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_info_path,dict_types,n_synapses,path_velocity)
+	else: 
+		network=distance_edges_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses)
 	network.build()
 	network.save_edges(output_dir=output_dir) 
 
@@ -40,6 +57,19 @@ def build_network_between_lgn_v1 (path_pre_h5,path_pre_csv,path_post_h5,path_pos
 	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
 	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
 	network=lgn_to_v1_layer(net_pre,net_post,lgn_to_l4_dict,layer_types,field_size)
+	network.build()
+	network.save_edges(output_dir=output_dir) 
+
+def build_network_between_lgn_v1_billeh (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,lgn_to_l4_dict,layer_types,field_size,output_dir) :
+	path_pre_split=path_pre_h5.split("/")
+	path_pre_split_bis=path_pre_split[-1].split("_nodes")
+	net_pre=NetworkBuilder(path_pre_split_bis[0])
+	path_post_split=path_post_h5.split("/")
+	path_post_split_bis=path_post_split[-1].split("_nodes")
+	net_post=NetworkBuilder(path_post_split_bis[0])
+	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
+	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
+	network=lgn_to_v1_layer_billeh(net_pre,net_post,lgn_to_l4_dict,layer_types,field_size)
 	network.build()
 	network.save_edges(output_dir=output_dir) 	
 
@@ -56,8 +86,7 @@ if __name__ == '__main__':
 	post_path_h5="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/network_v1_01/nodes/layer_4_factor_1_nodes.h5"
 	post_path_csv="/home/margaux/miniconda3/envs/ENV_NEST2/stockage_github/stockage_linux/network_v1_01/nodes/layer_4_factor_1_node_types.csv"
 	build_network_between_lgn_v1(pre_path_h5,pre_path_csv,post_path_h5,post_path_csv,lgn_to_l4_dict,layer_types,field_size,output_dir)
-"""
-
+"""		
 
 """
 if __name__ == '__main__':
@@ -100,13 +129,9 @@ if __name__ == '__main__':
 	path_pre_csv="../Networks/nodes/layer_4_factor_0.1_node_types.csv"
 	path_post_h5="../Networks/nodes/l5/layer_5_factor_0.1_nodes.h5"
 	path_post_csv="../Networks/nodes/l5/layer_5_factor_0.1_node_types.csv"
-	build_network_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir)
+	build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir)
 	#build_network_between (dict_node_path,factor,df_connection_info_path,dict_types,n_synapses,id_pre_layer,id_post_layer,output_dir)
 
-"""
-
-
-	
-	
+"""	
 	
 	
