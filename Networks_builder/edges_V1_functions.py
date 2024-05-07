@@ -13,9 +13,10 @@ def distance (x_pre,x_post,z_pre,z_post) :
 	return(d)
 
 def delay_function (source,target,velocity) : #velocity in µm/ms 
-	#TAKE INTO ACCOUNT IF EXCI OR INHI, DATA COMING FROM MOUSE
 	d=distance(source['positions'][0],target['positions'][0],source['positions'][2],target['positions'][2])
-	delay=d/velocity
+	delay=round(d/velocity,1) #the delay cannot be smaller than the dt (by default dt = 0.1ms)
+	if delay < 0.1  :
+		delay =0.1
 	return(delay)
 
 def velocity_extraction(velocity_path,layer_pre,layer_post) :
@@ -23,7 +24,29 @@ def velocity_extraction(velocity_path,layer_pre,layer_post) :
 	velocity=list(df.loc[df["Unnamed: 0"]==layer_pre][layer_post])[0]
 	return(velocity)
 	
+def distance_orientation_connection(source,target,amplitude,mu,function_type,n_synapses,slope) : #only works for now for nodes h5 with positions (instead of x,y,z) 
 	
+	#print(source['location'],source['pop_name'],source['node_id'],target["location"],target['pop_name'],target['node_id'])
+	d=distance(source['positions'][0],target['positions'][0],source['positions'][2],target['positions'][2])
+	if function_type == "gaussian" : 
+		proba_d=amplitude*np.exp(-d**2/(2*mu**2))
+	else : 
+		if function_type=="exponential" : 
+			proba_d=amplitude*np.exp(-d/mu)
+		else : 
+			proba_d=amplitude*np.exp(-d**2/(2*mu**2)) #billeh function
+	delta_orientation=float(source['tuning_angle'])-float(target['tuning_angle'])
+	delta_orientation_norm = abs(abs(abs(180.0-abs(delta_orientation))-90.0)-90.0)
+	p_angle=slope*delta_orientation_norm + 1
+	if source["ei"]=="e" and target["ei"]=="e" :
+		p=(proba_d/100)*p_angle
+	else : 
+		p=proba_d/100
+	p_connect=np.random.binomial(1,p)
+	if p_connect == 1:
+		return(n_synapses)
+	else : 
+		return(0)	
 
 def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #only works for now for nodes h5 with positions (instead of x,y,z) 
 	
@@ -43,6 +66,94 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 		return(0)
 
 
+def distance_edges_within (net,df_connection_info_path,dict_types,n_synapses) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
+	df_connection_info=pd.read_csv(df_connection_info_path)
+	for i in np.arange(df_connection_info.shape[0]) : 
+		pre_type=df_connection_info.loc[i]["pre"]
+		post_type=df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[pre_type] : 
+			for post_subtype in dict_types[post_type] : 
+				net.add_edges(
+					source={'pop_name':pre_subtype},
+					target={'pop_name':post_subtype},
+					connection_rule=distance_connection,
+					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses},
+        				syn_weight=df_connection_info.loc[i]["weight"],
+					delay= np.random.uniform(1,3),
+					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+	return(net)
+
+def distance_edges_within_orientation (net,df_connection_info_path,dict_types,n_synapses,slope) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
+	df_connection_info=pd.read_csv(df_connection_info_path)
+	for i in np.arange(df_connection_info.shape[0]) : 
+		pre_type=df_connection_info.loc[i]["pre"]
+		post_type=df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[pre_type] : 
+			for post_subtype in dict_types[post_type] : 
+				net.add_edges(
+					source={'pop_name':pre_subtype},
+					target={'pop_name':post_subtype},
+					connection_rule=distance_orientation_connection,
+					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
+        				syn_weight=df_connection_info.loc[i]["weight"],
+					delay= np.random.uniform(1,3),
+					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+	return(net)
+
+def distance_orientation_custom_delay_within (net,df_connection_info_path,dict_types,n_synapses,slope,path_velocity,layer) : 
+	df_connection_info=pd.read_csv(df_connection_info_path)
+	velocity=velocity_extraction(path_velocity,layer,layer)
+	for i in np.arange(df_connection_info.shape[0]) : 
+		pre_type=df_connection_info.loc[i]["pre"]
+		post_type=df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[pre_type] : 
+			for post_subtype in dict_types[post_type] : 
+				conn=net.add_edges(
+					source={'pop_name':pre_subtype},
+					target={'pop_name':post_subtype},
+					connection_rule=distance_orientation_connection,
+					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
+        				syn_weight=df_connection_info.loc[i]["weight"],
+					delay= np.random.uniform(1,3),
+					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+				conn.add_properties('delay',
+					rule=delay_function,
+					rule_params={'velocity': velocity},
+					dtypes=float)
+	return(net)
+
+
+
+	
+def distance_edges_within_with_custom_delay (net,df_connection_info_path,dict_types,n_synapses,path_velocity,layer) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict
+	velocity=velocity_extraction(path_velocity,layer,layer)
+	df_connection_info=pd.read_csv(df_connection_info_path)
+	for i in np.arange(df_connection_info.shape[0]) : 
+		pre_type=df_connection_info.loc[i]["pre"]
+		post_type=df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[pre_type] : 
+			for post_subtype in dict_types[post_type] : 
+				conn=net.add_edges(
+					source={'pop_name':pre_subtype},
+					target={'pop_name':post_subtype},
+					connection_rule=distance_connection,
+					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses},
+        				syn_weight=df_connection_info.loc[i]["weight"],
+					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+				conn.add_properties('delay',
+					rule=delay_function,
+					rule_params={'velocity': velocity},
+					dtypes=float)				
+	return(net)
+
 def distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_info_path,dict_types,n_synapses,path_velocity) :
 	df=pd.read_csv(df_connection_info_path)
 	name_pre=net_pre.name
@@ -52,8 +163,73 @@ def distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_inf
 	split_post=name_post.split("_")
 	layer_post="l"+str(split_post[1])
 	velocity=velocity_extraction(path_velocity,split_pre[1],split_post[1])
-	print(velocity)
+	sub_df_connection_info=df.loc[(df["pre_layer"]==layer_pre)&(df["post_layer"]==layer_post)].dropna()
+	sub_df_connection_info=sub_df_connection_info.drop(["Unnamed: 0"],axis=1)
+	for i in list(sub_df_connection_info.index) : 
+		pre_type=sub_df_connection_info.loc[i]["pre"]
+		post_type=sub_df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[layer_pre][pre_type] : 
+			for post_subtype in dict_types[layer_post][post_type] : 
+				conn=net_pre.add_edges(
+					source=net_pre.nodes(pop_name=pre_subtype),
+					target=net_post.nodes(pop_name=post_subtype),
+					connection_rule=distance_connection,
+					connection_params={'amplitude':sub_df_connection_info.loc[i]["pmax"],'mu':sub_df_connection_info.loc[i]["sigma"],'function_type':sub_df_connection_info.loc[i]["rule"],'n_synapses':n_synapses},
+        				syn_weight=sub_df_connection_info.loc[i]["weight"],
+					dynamics_params=sub_df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+				conn.add_properties('delay',
+					rule=delay_function,
+					rule_params={'velocity': velocity},
+					dtypes=float)
 	
+	return(net_pre)	
+
+
+def distance_orientation_custom_delay_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses,slope,path_velocity) : 
+	df=pd.read_csv(df_connection_info_path)
+	name_pre=net_pre.name
+	split_pre=name_pre.split("_")
+	layer_pre="l"+str(split_pre[1])
+	name_post=net_post.name
+	split_post=name_post.split("_")
+	layer_post="l"+str(split_post[1])
+	velocity=velocity_extraction(path_velocity,split_pre[1],split_post[1])
+	sub_df_connection_info=df.loc[(df["pre_layer"]==layer_pre)&(df["post_layer"]==layer_post)].dropna()
+	sub_df_connection_info=sub_df_connection_info.drop(["Unnamed: 0"],axis=1)
+	for i in list(sub_df_connection_info.index) : 
+		pre_type=sub_df_connection_info.loc[i]["pre"]
+		post_type=sub_df_connection_info.loc[i]["post"]
+		for pre_subtype in dict_types[layer_pre][pre_type] : 
+			for post_subtype in dict_types[layer_post][post_type] : 
+				conn=net_pre.add_edges(
+					source=net_pre.nodes(pop_name=pre_subtype),
+					target=net_post.nodes(pop_name=post_subtype),
+					connection_rule=distance_orientation_connection,
+					connection_params={'amplitude':sub_df_connection_info.loc[i]["pmax"],'mu':sub_df_connection_info.loc[i]["sigma"],'function_type':sub_df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
+        				syn_weight=sub_df_connection_info.loc[i]["weight"],
+					delay= np.random.uniform(1,3),
+					dynamics_params=sub_df_connection_info.loc[i]["synaptic_type"],
+					model_template='static_synapse'
+				)
+				conn.add_properties('delay',
+					rule=delay_function,
+					rule_params={'velocity': velocity},
+					dtypes=float)
+	return(net_pre)
+
+
+
+def distance_edges_between_orientation (net_pre,net_post,df_connection_info_path,dict_types,n_synapses,slope) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict (arugment devrait être un interval)
+	#trouver une façon de prendre seulement les lignes du df_connections selon les layer de net_pre et net_post : avec getattr(net_pre._name) et split pour obtenir l+nber layer
+	df=pd.read_csv(df_connection_info_path)
+	name_pre=net_pre.name
+	split_pre=name_pre.split("_")
+	layer_pre="l"+str(split_pre[1])
+	name_post=net_post.name
+	split_post=name_post.split("_")
+	layer_post="l"+str(split_post[1])
 	sub_df_connection_info=df.loc[(df["pre_layer"]==layer_pre)&(df["post_layer"]==layer_post)].dropna()
 	sub_df_connection_info=sub_df_connection_info.drop(["Unnamed: 0"],axis=1)
 	for i in list(sub_df_connection_info.index) : 
@@ -64,19 +240,15 @@ def distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_inf
 				net_pre.add_edges(
 					source=net_pre.nodes(pop_name=pre_subtype),
 					target=net_post.nodes(pop_name=post_subtype),
-					connection_rule=distance_connection,
-					connection_params={'amplitude':sub_df_connection_info.loc[i]["pmax"],'mu':sub_df_connection_info.loc[i]["sigma"],'function_type':sub_df_connection_info.loc[i]["rule"],'n_synapses':n_synapses},
+					connection_rule=distance_orientation_connection,
+					connection_params={'amplitude':sub_df_connection_info.loc[i]["pmax"],'mu':sub_df_connection_info.loc[i]["sigma"],'function_type':sub_df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
         				syn_weight=sub_df_connection_info.loc[i]["weight"],
 					delay= np.random.uniform(1,3),
 					dynamics_params=sub_df_connection_info.loc[i]["synaptic_type"],
 					model_template='static_synapse'
 				)
-	net.add_properties('delay',
-		rule=delay_function,
-		rule_params={'velocity': velocity},
-		dtypes=float)
-	
-	return(net_pre)	
+	return(net_pre)
+
 	
 def distance_edges_between (net_pre,net_post,df_connection_info_path,dict_types,n_synapses) : #faire une fonction qui choisit le nomber de n ou le mettre dans le dict (arugment devrait être un interval)
 	#trouver une façon de prendre seulement les lignes du df_connections selon les layer de net_pre et net_post : avec getattr(net_pre._name) et split pour obtenir l+nber layer
@@ -302,7 +474,7 @@ def lgn_to_v1_layer (net_pre,net_post,lgn_to_l4_dict,layer_types,field_size) :
 if __name__ == '__main__':
 	dict_path="../Additional_data/dict_v1_nodes.json"
 	#net_layers,dataframes=add_nodes_V1_in_nrrd (dict_path,1) 
-	df_connection_info_path="../Additional_data/from_l1_connections_info.csv"
+	df_connection_info_path="../Additional_data/l23_to_l23_connections_info.csv"
 	dict_types=dict()
 	#
 	dict_types_pre["exc"]=["exc1","exc2","exc3","exc4","exc5","exc6","exc7"]
@@ -358,7 +530,8 @@ if __name__ == '__main__':
 	#net=distance_edges_between(net_layers[0],net_layers[1],df_connection_info_path,dict_types,n_synapses) #changer argument
 	net=distance_edges_between_with_custom_delay(net_pre,net_post,df_connection_info_path,dict_types,n_synapses,path_velocity)
 	#net.build() #all connections within l4
-"""
+	"""
+
 
 	
 
