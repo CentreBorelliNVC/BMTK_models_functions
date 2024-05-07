@@ -44,7 +44,11 @@ def distance_orientation_connection(source,target,amplitude,mu,function_type,n_s
 		p=proba_d/100
 	p_connect=np.random.binomial(1,p)
 	if p_connect == 1:
-		return(n_synapses)
+		if type(n_synapses)!=int  : 
+			nsyns=np.random.randint(n_synapses[0],n_synapses[1])
+			return(nsyns)
+		else : 
+			return(n_synapses)
 	else : 
 		return(0)	
 
@@ -61,7 +65,11 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 			proba=amplitude*np.exp(-d**2/(2*mu**2)) #billeh function
 	p_connect=np.random.binomial(1,proba/100)
 	if p_connect == 1:
-		return(n_synapses)
+		if type(n_synapses)!=int  :  
+			nsyns=np.random.randint(n_synapses[0],n_synapses[1])
+			return(nsyns)
+		else : 
+			return(n_synapses)
 	else : 
 		return(0)
 
