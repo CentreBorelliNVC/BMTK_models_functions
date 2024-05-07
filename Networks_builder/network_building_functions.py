@@ -6,9 +6,12 @@ import math
 import numpy as np
 import json
 from position_building_V1 import get_population_loc_df,create_layer_population_loc,add_nodes_V1_in_nrrd
-from edges_V1_functions import distance_edges_between,lgn_to_v1_layer,distance_edges_between_with_custom_delay
+from edges_V1_functions import distance_edges_between,lgn_to_v1_layer,distance_edges_between_with_custom_delay,distance_edges_within,distance_edges_within_with_custom_delay,distance_edges_within_orientation,distance_edges_between_orientation,distance_orientation_custom_delay_between,distance_orientation_custom_delay_within 
 
-
+def velocity_extraction(velocity_path,layer_pre,layer_post) :
+	df=pd.read_csv(velocity_path)
+	velocity=list(df.loc[df["Unnamed: 0"]==layer_pre][layer_post])[0]
+	return(velocity)
 
 def build_network_within (path_h5,path_csv,df_connection_info_path,dict_types,n_synapses,output_dir):
 	path_split=path_h5.split("/")
@@ -27,7 +30,7 @@ def build_network_between (dict_node_path,factor,df_connection_info_path,dict_ty
 	
 	
 	
-def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir,custom_delay,path_velocity) :
+def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,df_connection_info_path,dict_types,n_synapses,output_dir,custom_delay,path_velocity,orientation,slope) :
 	path_pre_split=path_pre_h5.split("/")
 	path_pre_split_bis=path_pre_split[-1].split("_nodes")
 	net_pre=NetworkBuilder(path_pre_split_bis[0])
@@ -37,11 +40,32 @@ def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_pos
 	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
 	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
 	if custom_delay ==True :
-		network=distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_info_path,dict_types,n_synapses,path_velocity)
+		if path_pre_h5==path_post_h5 : 
+			split_name=path_post_split_bis[0].split("_")
+			if orientation == True : 
+				network=distance_orientation_custom_delay_within(net_pre,df_connection_info_path,dict_types,n_synapses,slope,path_velocity,split_name[1])
+			else :
+				network=distance_edges_within_with_custom_delay(net_pre,df_connection_info_path,dict_types,n_synapses,path_velocity,split_name[1])
+			
+		else :
+			if orientation == True : 
+				network=distance_orientation_custom_delay_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses,slope,path_velocity)
+			else : 
+				network=distance_edges_between_with_custom_delay (net_pre,net_post,df_connection_info_path,dict_types,n_synapses,path_velocity)
+			
 	else: 
-		network=distance_edges_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses)
+		if path_pre_h5==path_post_h5 : 
+			if orientation == True : 
+				network=distance_edges_within_orientation (net_pre,df_connection_info_path,dict_types,n_synapses,slope)
+			else : 
+				network=distance_edges_within(net_pre,df_connection_info_path,dict_types,n_synapses)
+		else:
+			if orientation == True : 
+				network=distance_edges_between_orientation(net_pre,net_post,df_connection_info_path,dict_types,n_synapses,slope)
+			else : 
+				network=distance_edges_between(net_pre,net_post,df_connection_info_path,dict_types,n_synapses)
 	network.build()
-	network.save_edges(output_dir=output_dir) 
+	network.save_edges(output_dir=output_dir)  
 
 def build_network_between_lgn_v1 (path_pre_h5,path_pre_csv,path_post_h5,path_post_csv,lgn_to_l4_dict,layer_types,field_size,output_dir) :
 	path_pre_split=path_pre_h5.split("/")
