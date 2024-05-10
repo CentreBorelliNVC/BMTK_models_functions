@@ -45,11 +45,18 @@ def distance_orientation_connection(source,target,amplitude,mu,function_type,n_s
 	p_connect=np.random.binomial(1,p)
 	if p_connect == 1:
 		if type(n_synapses)!=int  : 
-			nsyns=np.random.randint(n_synapses[0],n_synapses[1])
+			if source["ei"]=="e" : 
+				nsyns=np.random.randint(n_synapses[0][0],n_synapses[0][1])
+			else : 
+				nsyns=np.random.randint(n_synapses[1][0],n_synapses[1][1])
+			print(nsyns)
 			return(nsyns)
 		else : 
-			return(n_synapses)
+			nsyns=n_synapses
+			print(nsyns)
+			return(nsyns)
 	else : 
+		print(0)
 		return(0)	
 
 def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #only works for now for nodes h5 with positions (instead of x,y,z) 
@@ -66,10 +73,16 @@ def distance_connection(source,target,amplitude,mu,function_type,n_synapses) : #
 	p_connect=np.random.binomial(1,proba/100)
 	if p_connect == 1:
 		if type(n_synapses)!=int  :  
-			nsyns=np.random.randint(n_synapses[0],n_synapses[1])
+			if source["ei"]=="e" : 
+				nsyns=np.random.randint(n_synapses[0][0],n_synapses[0][1])
+			else : 
+				nsyns=np.random.randint(n_synapses[1][0],n_synapses[1][1])
+			print(nsyns)
 			return(nsyns)
 		else : 
-			return(n_synapses)
+			nsyns=n_synapses
+			print(nsyns)
+			return(nsyns)
 	else : 
 		return(0)
 
@@ -126,7 +139,6 @@ def distance_orientation_custom_delay_within (net,df_connection_info_path,dict_t
 					connection_rule=distance_orientation_connection,
 					connection_params={'amplitude':df_connection_info.loc[i]["pmax"],'mu':df_connection_info.loc[i]["sigma"],'function_type':df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
         				syn_weight=df_connection_info.loc[i]["weight"],
-					delay= np.random.uniform(1,3),
 					dynamics_params=df_connection_info.loc[i]["synaptic_type"],
 					model_template='static_synapse'
 				)
@@ -217,7 +229,6 @@ def distance_orientation_custom_delay_between(net_pre,net_post,df_connection_inf
 					connection_rule=distance_orientation_connection,
 					connection_params={'amplitude':sub_df_connection_info.loc[i]["pmax"],'mu':sub_df_connection_info.loc[i]["sigma"],'function_type':sub_df_connection_info.loc[i]["rule"],'n_synapses':n_synapses,'slope':slope},
         				syn_weight=sub_df_connection_info.loc[i]["weight"],
-					delay= np.random.uniform(1,3),
 					dynamics_params=sub_df_connection_info.loc[i]["synaptic_type"],
 					model_template='static_synapse'
 				)
