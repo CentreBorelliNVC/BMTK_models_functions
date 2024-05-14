@@ -40,7 +40,7 @@ def build_network_between_with_existing_nodes (path_pre_h5,path_pre_csv,path_pos
 	net_pre.import_nodes(nodes_file_name=path_pre_h5,node_types_file_name=path_pre_csv)
 	net_post.import_nodes(nodes_file_name=path_post_h5,node_types_file_name=path_post_csv)
 	if custom_delay ==True :
-		if path_pre_h5==path_post_h5 : 
+		if path_pre_h5==path_post_h5 : # Inside a same population
 			split_name=path_post_split_bis[0].split("_")
 			if orientation == True : 
 				network=distance_orientation_custom_delay_within(net_pre,df_connection_info_path,dict_types,n_synapses,slope,path_velocity,split_name[1])
