@@ -542,6 +542,7 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
                 
             layer_abrev = layer.replace("L","")
             layer_abrev = str(layer.split("_")[1])
+
             model_selection_list, model_selection_df= select_models(model_features_table, 
                                                                     desired_cell_Type_count, 
                                                                     model_selection_method, 
