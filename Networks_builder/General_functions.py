@@ -29,23 +29,23 @@ import math
 
 import position_building_V1 as pos_build
 
-Layer_pop_dict_L5 = {'Pyr5':.80,
-                  "VIP" : .20,
-                  "Total_N" : 2000,
-                  'd_min' : 10,
-                  'center_heigth' : -157.-572.-900.-(1411/2),
-                  "height" : 1411.0,
-                  "radius" : 200.0}
+# Layer_pop_dict_L5 = {'Pyr5':.80,
+#                   "VIP" : .20,
+#                   "Total_N" : 2000,
+#                   'd_min' : 10,
+#                   'center_heigth' : -157.-572.-900.-(1411/2),
+#                   "height" : 1411.0,
+#                   "radius" : 200.0}
 
-Layer_pop_dict_L6 = {'Pyr6':.80,
-                  "SST" : .20,
-                  "Total_N" : 2000,
-                  'd_min' : 10,
-                  'center_heigth' : -157.-572.-900.-1411.-(1973/2),
-                  "height" : 1973.0,
-                  "radius" : 200.0}
+# Layer_pop_dict_L6 = {'Pyr6':.80,
+#                   "SST" : .20,
+#                   "Total_N" : 2000,
+#                   'd_min' : 10,
+#                   'center_heigth' : -157.-572.-900.-1411.-(1973/2),
+#                   "height" : 1973.0,
+#                   "radius" : 200.0}
 
-Full_layer_list = [Layer_pop_dict_L5, Layer_pop_dict_L6]
+# Full_layer_list = [Layer_pop_dict_L5, Layer_pop_dict_L6]
 
 
 

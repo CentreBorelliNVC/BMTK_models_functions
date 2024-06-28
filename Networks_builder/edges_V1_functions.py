@@ -6,7 +6,9 @@ import plotly.express as px
 import math
 import numpy as np
 import json
+import tqdm
 from position_building_V1 import get_population_loc_df,create_layer_population_loc,add_nodes_V1_in_nrrd
+import General_functions as gen_func
 
 def distance (x_pre,x_post,z_pre,z_post) :
 	d=np.sqrt((x_pre-x_post)**2+(z_pre-z_post)**2)
@@ -488,6 +490,147 @@ def lgn_to_v1_layer (net_pre,net_post,lgn_to_l4_dict,layer_types,field_size) :
 			**edge_props
 		)
 	return(net_post)	
+
+def add_edges_test(pre_net_name, pre_net_folder, post_net_name, post_net_folder, connection_table, n_synapses, slope, velocity_path, custom_delay):
+    
+    pre_net_csv, pre_net_h5 = gen_func.get_nodes_csv_and_h5_table(pre_net_name, pre_net_folder)
+    post_net_csv, post_net_h5 = gen_func.get_nodes_csv_and_h5_table(post_net_name, post_net_folder)
+    
+    pre_net_pop_list = list(pre_net_csv.loc[:,'pop_name'])
+    post_net_pop_list = list(post_net_csv.loc[:,'pop_name'])
+    
+    pre_net_obj = NetworkBuilder(name=pre_net_name)
+    pre_net_obj.import_nodes(nodes_file_name=f"{pre_net_folder}/{pre_net_name}_nodes.h5", 
+                             node_types_file_name=f"{pre_net_folder}/{pre_net_name}_node_types.csv")
+    
+    post_net_obj = NetworkBuilder(name=post_net_name)
+    post_net_obj.import_nodes(nodes_file_name=f"{post_net_folder}/{post_net_name}_nodes.h5", 
+                             node_types_file_name=f"{post_net_folder}/{post_net_name}_node_types.csv")
+
+    established_connections = pd.DataFrame(columns = connection_table.columns)
+    for pre_net_pop in tqdm.tqdm(pre_net_pop_list):
+
+        #pre_layer, pre_pop = pre_net_pop.split("_") # To be modified when layer will be written L_2/3, L_4..
+        pre_L, pre_layer_nb, pre_pop = pre_net_pop.split("_")
+        pre_layer = f'{pre_L}_{str(pre_layer_nb)}'
+        
+        source_ei= np.array(pre_net_csv.loc[pre_net_csv['pop_name']==pre_net_pop,"ei"])[0]
+        
+        for post_net_pop in post_net_pop_list:
+            post_L, post_layer_nb, post_pop = post_net_pop.split("_")
+            post_layer = f'{post_L}_{str(post_layer_nb)}'
+            
+                
+            sub_connection_table = connection_table.loc[(connection_table["Pre_Layer"]==pre_layer)&
+                                                        (connection_table["Pre_pop"]==pre_pop)&
+                                                        (connection_table["Post_Layer"]==post_layer)&
+                                                        (connection_table["Post_pop"]==post_pop),:]
+
+            if sub_connection_table.shape[0]==0:
+                #print(f'No connection from {pre_net_pop} to {post_net_pop}')
+                continue
+            
+            
+            else:
+                #Check if this connection has already been implemented
+                sub_established_connections = established_connections.loc[(established_connections["Pre_Layer"]==pre_layer)&
+                                                            (established_connections["Pre_pop"]==pre_pop)&
+                                                            (established_connections["Post_Layer"]==post_layer)&
+                                                            (established_connections["Post_pop"]==post_pop),:]
+                if sub_established_connections.shape[0]!=0:
+                    # if source to target connection has already been implemented do not re-do it
+                    #print(f'Connection from {pre_net_pop} to {post_net_pop} already done')
+                    
+                    continue
+                else:
+                    pre_adapted_layer_number = pre_layer.split('_')[1]
+                    post_adapted_layer_number = post_layer.split('_')[1]
+                    
+                    velocity=velocity_extraction(velocity_path, pre_adapted_layer_number, post_adapted_layer_number)
+                    
+                    established_connections = pd.concat([established_connections,sub_connection_table], ignore_index = True)
+                    sub_connection_table = sub_connection_table.reset_index(drop=True)
+                    
+                    conection_rule = sub_connection_table.loc[0,"rule"]
+                    connection_pmax = sub_connection_table.loc[0,"pmax"]
+                    connection_sigma = sub_connection_table.loc[0,'sigma']
+                    connection_weitgh = sub_connection_table.loc[0,"weight"]
+                    connection_type = sub_connection_table.loc[0,"synaptic_type"]
+                    
+                    conn=pre_net_obj.add_edges(
+    					source=pre_net_obj.nodes(pop_name=pre_net_pop),
+    					target=post_net_obj.nodes(pop_name=post_net_pop),
+    					connection_rule=distance_connection_test,
+    					connection_params={'amplitude':connection_pmax,
+                            'mu':connection_sigma,
+                            'function_type':conection_rule,
+                            'n_synapses':n_synapses,
+                            "slope":None}, #if need orientation, enter not None slope
+            			syn_weight=connection_weitgh,
+    					dynamics_params=connection_type,
+    					model_template='static_synapse'
+    				)
+                    conn.add_properties("delay",
+                                               rule = delay_function_test,
+                                               rule_params = {'velocity' : velocity,
+                                                              'custom_delay' : custom_delay},# if need custom delay, set custom delay to True
+                                               dtypes = float)
+                    
+             
+    pre_net_obj.build()
+    pre_net_obj.save_edges(output_dir = pre_net_folder)
+    
+    return established_connections
+
+def delay_function_test(source, target, velocity, custom_delay):
+    if custom_delay == False:
+        delay = np.random.uniform(1,3)
+    elif custom_delay == True:
+        d=distance(source["positions"][0], target['positions'][0], source['positions'][2], target['positions'][2])
+        delay = round(d/velocity, 1)
+        if delay <0.1:
+            delay=0.1
+    return delay
+
+
+def distance_connection_test(source, target, amplitude, mu, function_type, n_synapses, slope=None, orientation = False):
+    d=distance(source['positions'][0], target['positions'][0], source["positions"][2], target["positions"][2])
+    
+    if function_type == 'gaussian':
+        proba = amplitude*np.exp(-d**2/(2*mu**2))
+    elif function_type == "exponential":
+        proba = amplitude*np.exp(-d/mu)
+    elif function_type == "billeh":
+        proba = amplitude*np.exp(-d**2/(2*mu**2))
+        
+    if slope is not None: #In case we consider orientation 
+        delta_orientation = float(source['tuning_angle'])-float(target['tuning_angle'])
+        delta_orientation_norm = abs(abs(abs(180.0 - abs(delta_orientation))-90.0)-90.0)
+        p_angle = slope*delta_orientation_norm + 1
+        
+        if source["ei"]=="e" and target["ei"]=='e':
+            p = (proba/100)*p_angle
+        else:
+            p = proba/100
+        p_connect = np.random.binomial(1/p)
+
+    else: #in case we don't consider orientation
+        p_connect = np.random.binomial(1, proba/100)
+
+        
+    if p_connect == 1:
+        if type(n_synapses) != int :
+            if source["ei"]=="e":
+                nsyns = np.random.randint(n_synapses[0][0], n_synapses[0][1])
+            else:
+                nsyns = np.random.randint(n_synapses[1][0], n_synapses[1][1])
+                
+            return nsyns
+        else:
+            nsyns = n_synapses
+            return nsyns
+    else:
+        return(0)
 
 """
 if __name__ == '__main__':

@@ -16,15 +16,17 @@ import scipy
 from scipy.stats import skewnorm, lognorm, norm
 from scipy.special import erfc, erf
 import plotnine as p9
+import tqdm
 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
 #%%
 
-def create_column(param_dict, layer_list, do_plot = False):
+def create_column_positions(param_dict, layer_list, do_plot = False):
     '''
-    Create a network cell location object. Given the parameters entered in the params dict, and the layer wanted, the function automatically computes the depth of the layer, the density, and the width
+    Create a network cell location object. 
+    Given the parameters entered in the params dict, and the layer wanted, the function automatically computes the depth of the layer, the density, and the width
     
     Parameters
     ----------
@@ -50,7 +52,7 @@ def create_column(param_dict, layer_list, do_plot = False):
                         "L_5" : 1411.0, 
                         "L_6" : 1973}
     
-    Layer_center_dict = {"L_1" : -78.5, #in um
+    Layer_depth_center_dict = {"L_1" : -78.5, #in um
                          "L_2/3" : -444.5, 
                          "L_4" : -1182.0,
                          "L_5" : -2334.5,
@@ -61,6 +63,42 @@ def create_column(param_dict, layer_list, do_plot = False):
                          "L_4" : 130_640.0,
                          "L_5" : 105_268.4,
                          "L_6" : 98_393.2}
+    Layer_cell_type_density_dict = {"L_1":{"Neurons" : 43_199.7,
+                                           "Excitatory" : 0.0, 
+                                           "Inhibitory" : 43_199.7,
+                                           "PValb" : 46.5,
+                                           "Sst" : 361.1, 
+                                           "Vip" : 1_189.1,
+                                           "REST" : 41_603.0},
+                                    "L_2/3":{"Neurons" : 108_787.9,
+                                            "Excitatory" : 81_671.5, 
+                                            "Inhibitory" : 27_116.4,
+                                            "PValb" : 4_089.6,
+                                            "Sst" : 2_262.4, 
+                                            "Vip" : 5_443.1,
+                                            "REST" : 15_321.4},
+                                    "L_4":{"Neurons" : 130_640.6,
+                                            "Excitatory" : 98_435.6, 
+                                            "Inhibitory" : 32_205.0,
+                                            "PValb" : 11_402.1,
+                                            "Sst" : 6_183.0, 
+                                            "Vip" : 3_029.9,
+                                            "REST" : 11_590.0},
+                                    "L_5":{"Neurons" : 105_268.4,
+                                            "Excitatory" : 75_868.7, 
+                                            "Inhibitory" : 29_399.7,
+                                            "PValb" : 13_041.7,
+                                            "Sst" : 8_266.5, 
+                                            "Vip" : 1_541.5,
+                                            "REST" : 6_549.9},
+                                    "L_6":{"Neurons" : 98_393.2,
+                                            "Excitatory" : 79_392.7, 
+                                            "Inhibitory" : 19_000.4,
+                                            "PValb" : 7_131.0,
+                                            "Sst" : 4_814.7, 
+                                            "Vip" : 1_179.5,
+                                            "REST" : 5_875.2}
+        }
     
     
     
@@ -68,7 +106,8 @@ def create_column(param_dict, layer_list, do_plot = False):
         
     for current_layer in layer_list:
         population_name = current_layer
-        #compute desired number of cell in the layer, according to the radius of the cynlinder, and the granularity
+        #compute desired number of cell in the layer, according to 
+        #the radius of the cynlinder, and the granularity
         granularity = param_dict['granularity']
 
         radius = param_dict['radius']
@@ -87,7 +126,7 @@ def create_column(param_dict, layer_list, do_plot = False):
         
         network_cell_location.add_positions_columnar(pop_names=population_name,
                                    N=N, 
-                                   center=[0.0, Layer_center_dict[population_name] , 0.0], 
+                                   center=[0.0, Layer_depth_center_dict[population_name] , 0.0], 
                                    height = Layer_width_dict[population_name],
                                    min_radius = 0.0, 
                                    max_radius = param_dict['radius'], 
@@ -386,7 +425,7 @@ def Log_normal(x, A, mu, sigma):
    
     return (y)
 
-def function_create_nodes_dict(model_features_table, layer_prop_dict, position_obj, Model_population_table, feature_distribution_table):
+def create_nodes_dict(model_features_table, layer_prop_dict, position_obj, Model_population_table, feature_distribution_table):
     '''
     Given a dictionnary describing for each layer, the populations their proportion, and how to select the models for eahc of the population
     
@@ -397,7 +436,7 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
         Table gathering for all available models the different properties.
     layer_prop_dict : Dict
         Dictionnary describing for each layer, the populations their proportion, and how to select the models for eahc of the population .
-        layer_prop_dict = {'L_4':{'PV':{'Proportion':.8,
+        layer_prop_dict = {'L_4':{'PValb':{'Proportion':.8,
                                        "Model_selection":"Average",
                                        "Feature":'Time_constant_ms'}, 
                                  "Sst":{'Proportion':.2,
@@ -452,7 +491,7 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
     population_position_df = get_population_loc_df(position_obj)
     
    
-    for layer, layer_pop_dict in layer_prop_dict.items(): 
+    for layer, layer_population_dict in layer_prop_dict.items(): 
         position_obj_modified = copy.deepcopy(position_obj)
         layer_positions_list = position_obj_modified._all_pop_names
 
@@ -481,10 +520,10 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
         layer_node_count={}
         total_layer = 0
         # determine number of nodes required for this cell type
-        for population, population_in_layer_dict in layer_pop_dict.items():
+        for population_name, population_in_layer_dict in layer_population_dict.items():
             cell_type_in_layer_proportion = population_in_layer_dict['Proportion']
             cell_type_nb = int(round(cell_type_in_layer_proportion * layer_N))
-            layer_node_count[population]=cell_type_nb
+            layer_node_count[population_name]=cell_type_nb
             total_layer += int(round(cell_type_in_layer_proportion * layer_N))
         #Check if the addition of the populations' sizes add up to the layer size, if not, adjust on the most represented population
         if total_layer != layer_N:
@@ -500,14 +539,14 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
             layer_node_count[max_key] += diff
                 
         
-        for population, population_in_layer_dict in layer_pop_dict.items():
+        for population_name, population_in_layer_dict in layer_population_dict.items():
             # create a copy of original position obj so we can modify it
             cell_type_position_obj = copy.deepcopy(position_obj)
             
-            cell_type_pop_name = f'{layer}_{population}'
+            cell_type_pop_name = f'{layer}_{population_name}'
             
             # is the cell type exc or inh
-            if 'Exc'.casefold() in population.casefold():
+            if 'Exc'.casefold() in population_name.casefold():
                 ei='e'
             else:
                 ei='i'
@@ -515,7 +554,7 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
             # determine number of nodes required for this cell type
             cell_type_in_layer_proportion = population_in_layer_dict['Proportion']
             
-            desired_cell_Type_count = layer_node_count[population]
+            desired_cell_Type_count = layer_node_count[population_name]
             N_tot += desired_cell_Type_count
             
             # get random list of coordinated, one coord for each node, and select the corresponding list
@@ -543,32 +582,32 @@ def function_create_nodes_dict(model_features_table, layer_prop_dict, position_o
             layer_abrev = layer.replace("L","")
             layer_abrev = str(layer.split("_")[1])
 
-            model_selection_list, model_selection_df= select_models(model_features_table, 
+            model_file_list, model_selection_df= select_models(model_features_table, 
                                                                     desired_cell_Type_count, 
                                                                     model_selection_method, 
                                                                     feature_distribution_table, 
                                                                     Feature_of_importance, 
-                                                                    population, 
+                                                                    population_name, 
                                                                     layer_abrev,
                                                                     do_plot=False)
 
                
-            layer_cell_type_node_dict = {'pop_name' : cell_type_pop_name, # "L_4_PV"
+            layer_population_node_dict = {'pop_name' : cell_type_pop_name, # "L_4_PV"
                                          'N' : desired_cell_Type_count, # 300
                                          'ei':ei, # "i"
                                          'layer':layer,  # "L_4"
-                                         'cell': population, # "PV"
+                                         'cell_type': population_name, # "PV"
                                          'position_obj' : cell_type_position_obj,
-                                         'model_list' : model_selection_list}
+                                         'model_list' : model_file_list}
             
-            layer_node_dict[population] = layer_cell_type_node_dict
+            layer_node_dict[population_name] = layer_population_node_dict
         node_dict['N_tot'] = N_tot
         node_dict[layer] =  layer_node_dict  
         
     return node_dict
 
 
-def function_build_nodes(node_dict, network_dir, network_name):
+def build_nodes(node_dict, network_dir, network_name):
     
     
     net = NetworkBuilder(network_name)
@@ -582,21 +621,29 @@ def function_build_nodes(node_dict, network_dir, network_name):
             if current_population=='Layer' or current_population == 'N':
                 continue
             position_obj = current_pop_dict['position_obj']
+            model_list = current_pop_dict['model_list']
+            unique_model_list = set(model_list)
+            last_position = 0
+            for unique_model in tqdm.tqdm(unique_model_list,total=len(unique_model_list), desc=f'Processing {current_Layer}, {current_population}'):
+                N_model = model_list.count(unique_model)
+                
+                net.add_nodes(N=N_model,  # Create a population of 80 neurons
+                              positions = position_obj._all_positions[0][last_position:int(last_position+N_model)],
+                              
+                              pop_name=current_pop_dict['pop_name'],
+                              layer = current_pop_dict['pop_name'].split('_')[1],
             
-            net.add_nodes(N=current_pop_dict['N'],  # Create a population of 80 neurons
-                          positions = position_obj._all_positions[0],
-                          
-                          pop_name=current_pop_dict['pop_name'],
-                          layer = current_pop_dict['pop_name'].split('_')[1],
-        
-                          ei= current_pop_dict['ei'],  # optional parameters
-                          model_type='point_process',  # Tells the simulator to use point-based neurons
-                          model_template='nest:glif_lif_asc_psc',  # tells the simulator to use NEST iaf_psc_alpha models
-                          dynamics_params=current_pop_dict['model_list'] # File containing iaf_psc_alpha mdoel parameters
-                         )
-    
+                              ei= current_pop_dict['ei'],  # optional parameters
+                              model_type='point_process',  # Tells the simulator to use point-based neurons
+                              model_template='nest:glif_cond',  # tells the simulator to use NEST iaf_psc_alpha models
+                              dynamics_params= unique_model# File containing iaf_psc_alpha mdoel parameters
+                             )
+                
+                last_position = int(last_position+N_model)
+
     net.build()
     net.save_nodes(output_dir=network_dir)
+        
     
 
     
